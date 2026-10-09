@@ -152,7 +152,7 @@ export function CheckoutView() {
     return (
       <div className="container mx-auto px-3 py-12 text-center">
         <h2 className="text-xl font-bold mb-2">Your cart is empty</h2>
-        <Button onClick={() => navigate({ name: 'home' })} className="bg-orange-600 text-white">
+        <Button onClick={() => navigate({ name: 'home' })} className="bg-sky-600 text-white">
           Continue Shopping
         </Button>
       </div>
@@ -161,7 +161,7 @@ export function CheckoutView() {
 
   return (
     <div className="container mx-auto px-3 py-6 space-y-4">
-      <button onClick={goBack} className="flex items-center gap-1 text-sm text-gray-600 hover:text-orange-600">
+      <button onClick={goBack} className="flex items-center gap-1 text-sm text-gray-600 hover:text-sky-600">
         <ChevronLeft className="h-4 w-4" /> Back to Cart
       </button>
       <h1 className="text-2xl font-bold">Checkout</h1>
@@ -191,7 +191,7 @@ export function CheckoutView() {
           <Card className="p-4">
             <h2 className="font-bold mb-3">Payment Method</h2>
             <RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethod)} className="space-y-2">
-              <label className="flex items-center gap-3 p-3 border rounded cursor-pointer hover:bg-orange-50 has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+              <label className="flex items-center gap-3 p-3 border rounded cursor-pointer hover:bg-sky-50 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50">
                 <RadioGroupItem value="COD" id="cod" />
                 <Banknote className="h-5 w-5 text-gray-700" />
                 <div>
@@ -209,9 +209,9 @@ export function CheckoutView() {
                 </div>
               </label>
 
-              <label className="flex items-center gap-3 p-3 border rounded cursor-pointer hover:bg-orange-50 has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+              <label className="flex items-center gap-3 p-3 border rounded cursor-pointer hover:bg-sky-50 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50">
                 <RadioGroupItem value="NAGAD" id="nagad" />
-                <Smartphone className="h-5 w-5 text-orange-600" />
+                <Smartphone className="h-5 w-5 text-sky-600" />
                 <div>
                   <div className="font-medium text-sm">Nagad</div>
                   <div className="text-xs text-gray-500">Mobile wallet payment</div>
@@ -298,13 +298,13 @@ export function CheckoutView() {
               </div>
               <div className="border-t pt-2 flex justify-between font-bold">
                 <span>Total</span>
-                <span className="text-orange-600">{formatBDT(total)}</span>
+                <span className="text-sky-600">{formatBDT(total)}</span>
               </div>
             </div>
             <Button
               onClick={placeOrder}
               disabled={placing}
-              className="w-full mt-4 bg-orange-600 hover:bg-orange-700 text-white"
+              className="w-full mt-4 bg-sky-600 hover:bg-sky-700 text-white"
             >
               {placing ? (
                 <>

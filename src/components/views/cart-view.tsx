@@ -73,7 +73,7 @@ export function CartView() {
         <ShoppingBag className="h-16 w-16 text-gray-300 mx-auto mb-4" />
         <h2 className="text-xl font-bold mb-2">Your cart is empty</h2>
         <p className="text-gray-500 mb-6">Browse our products and start shopping!</p>
-        <Button onClick={() => navigate({ name: 'home' })} className="bg-orange-600 hover:bg-orange-700 text-white">
+        <Button onClick={() => navigate({ name: 'home' })} className="bg-sky-600 hover:bg-sky-700 text-white">
           Continue Shopping
         </Button>
       </div>
@@ -82,7 +82,7 @@ export function CartView() {
 
   return (
     <div className="container mx-auto px-3 py-6 space-y-4">
-      <button onClick={goBack} className="flex items-center gap-1 text-sm text-gray-600 hover:text-orange-600">
+      <button onClick={goBack} className="flex items-center gap-1 text-sm text-gray-600 hover:text-sky-600">
         <ChevronLeft className="h-4 w-4" /> Continue Shopping
       </button>
       <h1 className="text-2xl font-bold">Shopping Cart ({items.length} items)</h1>
@@ -100,12 +100,12 @@ export function CartView() {
               />
               <div className="flex-1 min-w-0">
                 <h3
-                  className="text-sm font-medium line-clamp-2 cursor-pointer hover:text-orange-600"
+                  className="text-sm font-medium line-clamp-2 cursor-pointer hover:text-sky-600"
                   onClick={() => navigate({ name: 'product', productId: item.productId })}
                 >
                   {item.product.name}
                 </h3>
-                <p className="text-orange-600 font-bold text-base mt-1">{formatBDT(item.product.price)}</p>
+                <p className="text-sky-600 font-bold text-base mt-1">{formatBDT(item.product.price)}</p>
                 <div className="flex items-center justify-between mt-2">
                   <div className="flex items-center border rounded">
                     <button
@@ -154,18 +154,18 @@ export function CartView() {
                 </span>
               </div>
               {subtotal > 0 && subtotal < 1000 && (
-                <p className="text-xs text-orange-600 bg-orange-50 p-2 rounded">
+                <p className="text-xs text-sky-600 bg-sky-50 p-2 rounded">
                   Add {formatBDT(1000 - subtotal)} more for free shipping!
                 </p>
               )}
               <div className="border-t pt-2 flex justify-between font-bold text-base">
                 <span>Total</span>
-                <span className="text-orange-600">{formatBDT(total)}</span>
+                <span className="text-sky-600">{formatBDT(total)}</span>
               </div>
             </div>
             <Button
               onClick={() => navigate({ name: 'checkout' })}
-              className="w-full mt-4 bg-orange-600 hover:bg-orange-700 text-white"
+              className="w-full mt-4 bg-sky-600 hover:bg-sky-700 text-white"
             >
               Proceed to Checkout
             </Button>

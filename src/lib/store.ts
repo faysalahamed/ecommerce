@@ -29,10 +29,10 @@ export interface CartItemFE {
 
 export interface UserFE {
   id: string
-  email: string
+  email?: string | null
+  phone: string
   name: string
   role: 'ADMIN' | 'RETAILER' | 'CUSTOMER'
-  phone?: string | null
   address?: string | null
   storeName?: string | null
   avatar?: string | null

@@ -81,7 +81,7 @@ export default function Home() {
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
-        <Loader2 className="h-8 w-8 text-orange-600 animate-spin mb-3" />
+        <Loader2 className="h-8 w-8 text-sky-600 animate-spin mb-3" />
         <p className="text-gray-600 text-sm">Loading Daraz...</p>
       </div>
     )
@@ -94,8 +94,8 @@ export default function Home() {
         <Header categories={categories} />
         <main className="flex-1 container mx-auto px-3 py-16 flex items-center justify-center">
           <div className="max-w-md text-center">
-            <div className="bg-orange-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Database className="h-10 w-10 text-orange-600" />
+            <div className="bg-sky-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Database className="h-10 w-10 text-sky-600" />
             </div>
             <h1 className="text-2xl font-bold mb-3">Welcome to Daraz Clone</h1>
             <p className="text-gray-600 mb-6">
@@ -104,7 +104,7 @@ export default function Home() {
             <Button
               onClick={handleSeed}
               disabled={seeding}
-              className="bg-orange-600 hover:bg-orange-700 text-white"
+              className="bg-sky-600 hover:bg-sky-700 text-white"
               size="lg"
             >
               {seeding ? (
@@ -120,7 +120,7 @@ export default function Home() {
               )}
             </Button>
             <p className="text-xs text-gray-400 mt-4">
-              Demo accounts: admin@daraz.local / admin123 • retailer@daraz.local / retailer123 • customer@daraz.local / customer123
+              Demo accounts (phone or email): admin@daraz.local / admin123 • +8801700000002 / retailer123 • +8801700000004 / customer123
             </p>
           </div>
         </main>

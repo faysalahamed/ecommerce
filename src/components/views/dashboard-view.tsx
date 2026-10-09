@@ -118,7 +118,7 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
     return (
       <div className="container mx-auto px-3 py-12 text-center">
         <p className="text-gray-500 mb-3">Please login to view your dashboard.</p>
-        <Button onClick={() => openAuth('login')} className="bg-orange-600 text-white">Login</Button>
+        <Button onClick={() => openAuth('login')} className="bg-sky-600 text-white">Login</Button>
       </div>
     )
   }
@@ -134,7 +134,7 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
         {user.role !== 'CUSTOMER' && (
           <Button
             onClick={() => { setEditingProduct(null); setFormOpen(true) }}
-            className="bg-orange-600 hover:bg-orange-700 text-white"
+            className="bg-sky-600 hover:bg-sky-700 text-white"
           >
             <Plus className="h-4 w-4 mr-1" /> Add Product
           </Button>
@@ -150,7 +150,7 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
                 <p className="text-xs text-gray-500">Total Products</p>
                 <p className="text-2xl font-bold">{stats.totalProducts}</p>
               </div>
-              <Package className="h-8 w-8 text-orange-500 opacity-50" />
+              <Package className="h-8 w-8 text-sky-500 opacity-50" />
             </div>
           </Card>
         )}
@@ -192,7 +192,7 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
                 <p className="text-xs text-gray-500">Store</p>
                 <p className="text-lg font-bold truncate">{user.storeName || user.name}</p>
               </div>
-              <Store className="h-8 w-8 text-orange-500 opacity-50" />
+              <Store className="h-8 w-8 text-sky-500 opacity-50" />
             </div>
           </Card>
         ) : null}
@@ -319,7 +319,7 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
                           o.status === 'DELIVERED' ? 'bg-green-100' :
                           o.status === 'SHIPPED' ? 'bg-blue-100' :
                           o.status === 'CANCELLED' ? 'bg-red-100' :
-                          'bg-orange-100'
+                          'bg-sky-100'
                         }>
                           {o.status}
                         </Badge>
@@ -342,12 +342,13 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
                     </div>
                     <div className="border-t pt-2 mt-2 flex justify-between font-bold text-sm">
                       <span>Total</span>
-                      <span className="text-orange-600">{formatBDT(o.total)}</span>
+                      <span className="text-sky-600">{formatBDT(o.total)}</span>
                     </div>
                     {user.role === 'ADMIN' && (
                       <div className="border-t pt-2 mt-2 flex flex-wrap gap-2 items-center">
                         <span className="text-xs text-gray-500">Customer:</span>
-                        <span className="text-xs font-semibold">{o.user?.name} ({o.user?.email})</span>
+                        <span className="text-xs font-semibold">{o.user?.name}</span>
+                        <span className="text-xs text-gray-500">({o.user?.phone}{o.user?.email ? `, ${o.user.email}` : ''})</span>
                         <span className="text-xs text-gray-500">→ {o.recipientName}, {o.phone}, {o.address}</span>
                       </div>
                     )}
@@ -428,7 +429,7 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
                     {users.map((u) => (
                       <TableRow key={u.id}>
                         <TableCell className="font-medium">{u.name}</TableCell>
-                        <TableCell className="text-sm">{u.email}</TableCell>
+                        <TableCell className="text-sm">{u.email || '—'}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="capitalize">{u.role.toLowerCase()}</Badge>
                         </TableCell>
@@ -703,7 +704,7 @@ function ProductFormDialog({
 
           <div className="flex gap-2 pt-2">
             <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">Cancel</Button>
-            <Button onClick={submit} disabled={saving} className="flex-1 bg-orange-600 hover:bg-orange-700 text-white">
+            <Button onClick={submit} disabled={saving} className="flex-1 bg-sky-600 hover:bg-sky-700 text-white">
               {saving ? 'Saving...' : product ? 'Update Product' : 'Add Product'}
             </Button>
           </div>

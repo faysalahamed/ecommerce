@@ -62,3 +62,70 @@ Stage Summary:
 - All UI components use Tailwind 4 + shadcn/ui, fully responsive, with orange-600 Daraz-style branding
 - All 4 roles' core flows verified working end-to-end in browser
 - Status: COMPLETE
+
+---
+Task ID: 2
+Agent: Super Z (main)
+Task: Change color theme from Daraz orange to sky blue + support phone-based account creation (with phone OR email login)
+
+Work Log:
+- Replaced all `orange-*` Tailwind classes with `sky-*` equivalents across 12 source files (header, footer, product-card, auth-modal, all 8 views, page.tsx)
+- Updated hero gradient from `from-sky-500 to-pink-500` to `from-sky-500 to-cyan-500` for cohesive sky-blue palette
+- Kept flash sale red badge (red signals urgency) and bKash pink brand color (industry standard)
+- Updated Prisma schema:
+  - `phone` changed from optional to required + `@unique`
+  - `email` changed from required to optional + `@unique`
+- Pushed updated schema to SQLite database (re-seedable)
+- Updated `POST /api/auth/register` route:
+  - Phone is now the required primary identifier
+  - Email is optional (skipped if empty)
+  - Phone is normalized (strips +, spaces, dashes) before storage
+  - Returns `phone` and `email` (may be null) in user object
+- Updated `POST /api/auth/login` route:
+  - New `phoneOrEmail` field accepts either format
+  - Auto-detects email (matches `.+@.+\..+`) vs phone (matches digits with optional + prefix)
+  - Falls back to trying both lookups for ambiguous input
+  - Phone normalized before lookup so `+8801711111111`, `8801711111111`, `+880 1711-111111` all match
+- Updated `GET /api/auth/me` route to return `phone` field
+- Updated `src/lib/store.ts` UserFE type — `phone` required, `email` optional
+- Updated Auth Modal UI:
+  - Login: single "Phone Number or Email" input replaces separate email field
+  - Register: reordered fields — Phone (required) shown before Email (optional) with explanatory help text
+  - Demo buttons: Admin uses email, Retailer and Customer use phone numbers (matches how the seed data was created)
+  - Updated demo account credentials in the empty-state seed screen hint
+- Updated Header dropdown to display `user.phone` first, then `user.email` (if present)
+- Updated Admin Dashboard:
+  - Users table shows `email || '—'` for graceful handling of phone-only accounts
+  - Order details panel shows customer's phone + optional email in parentheses
+- Re-seeded database with phone-first demo accounts:
+  - admin: phone `8801700000001` (email `admin@daraz.local`)
+  - retailer: phone `8801700000002` (email `retailer@daraz.local`)
+  - customer: phone `8801700000004` (email `customer@daraz.local`)
+- Re-restarted dev server (setsid -f) to pick up new Prisma client runtime types
+- Verified end-to-end with curl:
+  - Login by phone `8801700000004` + `customer123` → 200 OK, returns user
+  - Login by email `admin@daraz.local` + `admin123` → 200 OK
+  - Login by phone with `+880` prefix (`+8801700000004`) → 200 OK (normalized)
+  - Register with phone only (no email) → 201 Created, email is null
+  - Login with newly registered phone-only account → 200 OK
+- Verified with agent-browser:
+  - Login modal now shows "Phone Number or Email" label
+  - Register tab shows "Phone Number *" required + "Email (optional)" + helpful note
+  - All visual elements now use sky-blue theme (header bar, buttons, badges, accents)
+- Final lint: passes clean (0 errors, 0 warnings)
+- Screenshots saved:
+  - /home/z/my-project/download/home-sky-blue.png (full home page)
+  - /home/z/my-project/download/auth-sky-blue.png (auth modal)
+
+Stage Summary:
+- Color theme successfully changed from Daraz orange to sky blue across all UI components
+- Authentication now supports BOTH phone and email:
+  - Register with phone (required) + email (optional) + password + name + role + optional store name
+  - Login with either phone OR email — auto-detection based on input format
+  - Phone is normalized on both register and login so users can enter with or without +, spaces, dashes
+- Phone is now the primary account identifier; email is supplementary
+- Demo credentials updated (all work via curl-tested):
+  - Phone login: 8801700000001 / admin123 (or admin@daraz.local / admin123)
+  - Phone login: 8801700000002 / retailer123 (or retailer@daraz.local / retailer123)
+  - Phone login: 8801700000004 / customer123 (or customer@daraz.local / customer123)
+- All existing features (cart, checkout, payment gateway, dashboards) remain fully functional with the new theme and auth flow

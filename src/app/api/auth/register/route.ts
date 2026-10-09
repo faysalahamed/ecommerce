@@ -5,15 +5,32 @@ import { hashPassword, createToken, setSessionCookie } from '@/lib/auth'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { email, password, name, role, phone, storeName } = body
+    const { phone, email, password, name, role, storeName } = body
 
-    if (!email || !password || !name) {
-      return NextResponse.json({ error: 'Email, password and name are required' }, { status: 400 })
+    if (!phone || !password || !name) {
+      return NextResponse.json(
+        { error: 'Phone number, password and name are required' },
+        { status: 400 }
+      )
     }
 
-    const existing = await db.user.findUnique({ where: { email } })
-    if (existing) {
-      return NextResponse.json({ error: 'Email already registered' }, { status: 409 })
+    // Normalize phone: remove leading +, spaces, dashes
+    const normalizedPhone = String(phone).replace(/[+\-\s]/g, '')
+
+    // Check phone uniqueness
+    const existingByPhone = await db.user.findUnique({ where: { phone: normalizedPhone } })
+    if (existingByPhone) {
+      return NextResponse.json({ error: 'Phone number already registered' }, { status: 409 })
+    }
+
+    // Check email uniqueness if provided
+    let normalizedEmail: string | null = null
+    if (email && String(email).trim()) {
+      normalizedEmail = String(email).trim().toLowerCase()
+      const existingByEmail = await db.user.findUnique({ where: { email: normalizedEmail } })
+      if (existingByEmail) {
+        return NextResponse.json({ error: 'Email already registered' }, { status: 409 })
+      }
     }
 
     const finalRole = ['ADMIN', 'RETAILER', 'CUSTOMER'].includes(role) ? role : 'CUSTOMER'
@@ -21,18 +38,18 @@ export async function POST(req: NextRequest) {
     const hashed = await hashPassword(password)
     const user = await db.user.create({
       data: {
-        email,
+        phone: normalizedPhone,
+        email: normalizedEmail,
         password: hashed,
         name,
         role: finalRole,
-        phone: phone || null,
         storeName: finalRole === 'RETAILER' ? storeName || null : null,
       },
     })
 
     const token = await createToken({
       userId: user.id,
-      email: user.email,
+      email: user.phone, // use phone as the primary identifier in JWT
       role: user.role,
       name: user.name,
     })
@@ -41,10 +58,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       user: {
         id: user.id,
+        phone: user.phone,
         email: user.email,
         name: user.name,
         role: user.role,
-        phone: user.phone,
         storeName: user.storeName,
       },
     })

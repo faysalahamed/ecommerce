@@ -22,20 +22,20 @@ export function Footer({ categories }: { categories: { id: string; name: string;
         <div>
           <h4 className="text-white font-semibold mb-3">Customer Care</h4>
           <ul className="space-y-2 text-sm">
-            <li className="hover:text-orange-400 cursor-pointer">Help Center</li>
-            <li className="hover:text-orange-400 cursor-pointer">How to Buy</li>
-            <li className="hover:text-orange-400 cursor-pointer">Returns & Refunds</li>
-            <li className="hover:text-orange-400 cursor-pointer">Contact Us</li>
-            <li className="hover:text-orange-400 cursor-pointer">Warranty Policy</li>
+            <li className="hover:text-sky-400 cursor-pointer">Help Center</li>
+            <li className="hover:text-sky-400 cursor-pointer">How to Buy</li>
+            <li className="hover:text-sky-400 cursor-pointer">Returns & Refunds</li>
+            <li className="hover:text-sky-400 cursor-pointer">Contact Us</li>
+            <li className="hover:text-sky-400 cursor-pointer">Warranty Policy</li>
           </ul>
         </div>
         <div>
           <h4 className="text-white font-semibold mb-3">Earn With Daraz</h4>
           <ul className="space-y-2 text-sm">
-            <li className="hover:text-orange-400 cursor-pointer">Become a Seller</li>
-            <li className="hover:text-orange-400 cursor-pointer">Daraz University</li>
-            <li className="hover:text-orange-400 cursor-pointer">Affiliate Program</li>
-            <li className="hover:text-orange-400 cursor-pointer">Service Center</li>
+            <li className="hover:text-sky-400 cursor-pointer">Become a Seller</li>
+            <li className="hover:text-sky-400 cursor-pointer">Daraz University</li>
+            <li className="hover:text-sky-400 cursor-pointer">Affiliate Program</li>
+            <li className="hover:text-sky-400 cursor-pointer">Service Center</li>
           </ul>
         </div>
         <div>
@@ -45,7 +45,7 @@ export function Footer({ categories }: { categories: { id: string; name: string;
               <li
                 key={c.id}
                 onClick={() => navigate({ name: 'category', categoryId: c.id, categoryName: c.name })}
-                className="hover:text-orange-400 cursor-pointer flex items-center gap-1.5"
+                className="hover:text-sky-400 cursor-pointer flex items-center gap-1.5"
               >
                 <span>{c.icon ? CATEGORY_ICONS[c.icon] || '🛍️' : '🛍️'}</span>
                 {c.name}
@@ -57,17 +57,17 @@ export function Footer({ categories }: { categories: { id: string; name: string;
           <h4 className="text-white font-semibold mb-3">Payment Methods</h4>
           <div className="flex flex-wrap gap-2 text-xs">
             <span className="bg-pink-600 text-white px-2 py-1 rounded">bKash</span>
-            <span className="bg-orange-600 text-white px-2 py-1 rounded">Nagad</span>
+            <span className="bg-sky-600 text-white px-2 py-1 rounded">Nagad</span>
             <span className="bg-green-600 text-white px-2 py-1 rounded">Rocket</span>
             <span className="bg-blue-700 text-white px-2 py-1 rounded">VISA</span>
             <span className="bg-yellow-500 text-white px-2 py-1 rounded">COD</span>
           </div>
           <h4 className="text-white font-semibold mb-3 mt-6">Follow Us</h4>
           <div className="flex gap-3 text-xl">
-            <span className="hover:text-orange-400 cursor-pointer">📘</span>
-            <span className="hover:text-orange-400 cursor-pointer">📷</span>
-            <span className="hover:text-orange-400 cursor-pointer">🐦</span>
-            <span className="hover:text-orange-400 cursor-pointer">▶️</span>
+            <span className="hover:text-sky-400 cursor-pointer">📘</span>
+            <span className="hover:text-sky-400 cursor-pointer">📷</span>
+            <span className="hover:text-sky-400 cursor-pointer">🐦</span>
+            <span className="hover:text-sky-400 cursor-pointer">▶️</span>
           </div>
         </div>
       </div>

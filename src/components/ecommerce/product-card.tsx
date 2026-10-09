@@ -98,7 +98,7 @@ export function ProductCard({ product, compact = false }: { product: ProductFE; 
     >
       {/* Discount badge */}
       {discount && (
-        <div className="absolute top-2 left-2 z-10 bg-orange-600 text-white text-xs font-bold px-2 py-0.5 rounded">
+        <div className="absolute top-2 left-2 z-10 bg-sky-600 text-white text-xs font-bold px-2 py-0.5 rounded">
           -{discount}%
         </div>
       )}
@@ -135,7 +135,7 @@ export function ProductCard({ product, compact = false }: { product: ProductFE; 
           {product.name}
         </h3>
         <div className="flex items-baseline gap-1.5 flex-wrap">
-          <span className="text-orange-600 font-bold text-base">{formatBDT(product.price)}</span>
+          <span className="text-sky-600 font-bold text-base">{formatBDT(product.price)}</span>
           {product.comparePrice && product.comparePrice > product.price && (
             <span className="text-xs text-gray-400 line-through">
               {formatBDT(product.comparePrice)}
@@ -155,7 +155,7 @@ export function ProductCard({ product, compact = false }: { product: ProductFE; 
           disabled={adding || product.stock <= 0}
           size="sm"
           variant="outline"
-          className="w-full mt-1.5 border-orange-500 text-orange-600 hover:bg-orange-50 hover:text-orange-700 disabled:opacity-50"
+          className="w-full mt-1.5 border-sky-500 text-sky-600 hover:bg-sky-50 hover:text-sky-700 disabled:opacity-50"
         >
           {product.stock <= 0 ? 'Out of stock' : (
             <>

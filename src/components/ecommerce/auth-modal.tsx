@@ -20,17 +20,17 @@ export function AuthModal() {
   const { authModal, closeAuth, setUser, refreshCart, navigate } = useStore()
   const [loading, setLoading] = useState(false)
 
-  // login form
-  const [loginEmail, setLoginEmail] = useState('')
+  // login form — accepts phone OR email
+  const [loginIdentifier, setLoginIdentifier] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
 
   // register form
   const [regName, setRegName] = useState('')
+  const [regPhone, setRegPhone] = useState('')
   const [regEmail, setRegEmail] = useState('')
   const [regPassword, setRegPassword] = useState('')
   const [regRole, setRegRole] = useState<'CUSTOMER' | 'RETAILER'>('CUSTOMER')
   const [regStoreName, setRegStoreName] = useState('')
-  const [regPhone, setRegPhone] = useState('')
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -39,7 +39,7 @@ export function AuthModal() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+        body: JSON.stringify({ phoneOrEmail: loginIdentifier, password: loginPassword }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -66,11 +66,11 @@ export function AuthModal() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: regName,
-          email: regEmail,
+          phone: regPhone,
+          email: regEmail || undefined,
           password: regPassword,
           role: regRole,
-          phone: regPhone,
-          storeName: regStoreName,
+          storeName: regStoreName || undefined,
         }),
       })
       const data = await res.json()
@@ -94,11 +94,11 @@ export function AuthModal() {
 
   const fillDemo = (role: 'admin' | 'retailer' | 'customer') => {
     const creds = {
-      admin: { email: 'admin@daraz.local', password: 'admin123' },
-      retailer: { email: 'retailer@daraz.local', password: 'retailer123' },
-      customer: { email: 'customer@daraz.local', password: 'customer123' },
+      admin: { id: 'admin@daraz.local', password: 'admin123' },
+      retailer: { id: '+8801700000002', password: 'retailer123' },
+      customer: { id: '+8801700000004', password: 'customer123' },
     }[role]
-    setLoginEmail(creds.email)
+    setLoginIdentifier(creds.id)
     setLoginPassword(creds.password)
   }
 
@@ -106,7 +106,7 @@ export function AuthModal() {
     <Dialog open={authModal !== null} onOpenChange={(o) => !o && closeAuth()}>
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-orange-600">Welcome to Daraz</DialogTitle>
+          <DialogTitle className="text-sky-600">Welcome to Daraz</DialogTitle>
           <DialogDescription>Sign in or create a new account</DialogDescription>
         </DialogHeader>
 
@@ -120,14 +120,14 @@ export function AuthModal() {
           <TabsContent value="login">
             <form onSubmit={handleLogin} className="space-y-3 mt-2">
               <div>
-                <Label htmlFor="lemail">Email</Label>
+                <Label htmlFor="lpid">Phone Number or Email</Label>
                 <Input
-                  id="lemail"
-                  type="email"
-                  value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
+                  id="lpid"
+                  value={loginIdentifier}
+                  onChange={(e) => setLoginIdentifier(e.target.value)}
                   required
-                  placeholder="you@example.com"
+                  placeholder="01XXXXXXXXX or you@example.com"
+                  autoComplete="username"
                 />
               </div>
               <div>
@@ -139,9 +139,10 @@ export function AuthModal() {
                   onChange={(e) => setLoginPassword(e.target.value)}
                   required
                   placeholder="••••••••"
+                  autoComplete="current-password"
                 />
               </div>
-              <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700 text-white" disabled={loading}>
+              <Button type="submit" className="w-full bg-sky-600 hover:bg-sky-700 text-white" disabled={loading}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Login
               </Button>
@@ -171,20 +172,45 @@ export function AuthModal() {
           <TabsContent value="register">
             <form onSubmit={handleRegister} className="space-y-3 mt-2">
               <div>
-                <Label htmlFor="rname">Full Name</Label>
+                <Label htmlFor="rname">Full Name *</Label>
                 <Input id="rname" value={regName} onChange={(e) => setRegName(e.target.value)} required placeholder="Your name" />
               </div>
               <div>
-                <Label htmlFor="remail">Email</Label>
-                <Input id="remail" type="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} required placeholder="you@example.com" />
+                <Label htmlFor="rphone">Phone Number *</Label>
+                <Input
+                  id="rphone"
+                  type="tel"
+                  value={regPhone}
+                  onChange={(e) => setRegPhone(e.target.value)}
+                  required
+                  placeholder="01XXXXXXXXX (used to login)"
+                  autoComplete="tel"
+                />
+                <p className="text-[11px] text-gray-500 mt-1">You can use this phone to login.</p>
               </div>
               <div>
-                <Label htmlFor="rpass">Password</Label>
-                <Input id="rpass" type="password" value={regPassword} onChange={(e) => setRegPassword(e.target.value)} required minLength={6} placeholder="Min 6 characters" />
+                <Label htmlFor="remail">Email (optional)</Label>
+                <Input
+                  id="remail"
+                  type="email"
+                  value={regEmail}
+                  onChange={(e) => setRegEmail(e.target.value)}
+                  placeholder="you@example.com (optional)"
+                  autoComplete="email"
+                />
               </div>
               <div>
-                <Label htmlFor="rphone">Phone (optional)</Label>
-                <Input id="rphone" value={regPhone} onChange={(e) => setRegPhone(e.target.value)} placeholder="+8801XXXXXXXXX" />
+                <Label htmlFor="rpass">Password *</Label>
+                <Input
+                  id="rpass"
+                  type="password"
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  placeholder="Min 6 characters"
+                  autoComplete="new-password"
+                />
               </div>
               <div>
                 <Label>Account Type</Label>
@@ -194,7 +220,7 @@ export function AuthModal() {
                     size="sm"
                     variant={regRole === 'CUSTOMER' ? 'default' : 'outline'}
                     onClick={() => setRegRole('CUSTOMER')}
-                    className={regRole === 'CUSTOMER' ? 'bg-orange-600 text-white' : ''}
+                    className={regRole === 'CUSTOMER' ? 'bg-sky-600 text-white' : ''}
                   >
                     Customer
                   </Button>
@@ -203,7 +229,7 @@ export function AuthModal() {
                     size="sm"
                     variant={regRole === 'RETAILER' ? 'default' : 'outline'}
                     onClick={() => setRegRole('RETAILER')}
-                    className={regRole === 'RETAILER' ? 'bg-orange-600 text-white' : ''}
+                    className={regRole === 'RETAILER' ? 'bg-sky-600 text-white' : ''}
                   >
                     Retailer / Seller
                   </Button>
@@ -211,14 +237,17 @@ export function AuthModal() {
               </div>
               {regRole === 'RETAILER' && (
                 <div>
-                  <Label htmlFor="rstore">Store Name</Label>
+                  <Label htmlFor="rstore">Store Name *</Label>
                   <Input id="rstore" value={regStoreName} onChange={(e) => setRegStoreName(e.target.value)} required placeholder="Your store name" />
                 </div>
               )}
-              <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700 text-white" disabled={loading}>
+              <Button type="submit" className="w-full bg-sky-600 hover:bg-sky-700 text-white" disabled={loading}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Create Account
               </Button>
+              <p className="text-[11px] text-gray-500 text-center">
+                Your phone number is your account ID. Email is optional.
+              </p>
             </form>
           </TabsContent>
         </Tabs>

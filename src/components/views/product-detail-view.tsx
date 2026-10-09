@@ -100,7 +100,7 @@ export function ProductDetailView() {
     <div className="container mx-auto px-3 py-6 space-y-6">
       <button
         onClick={goBack}
-        className="flex items-center gap-1 text-sm text-gray-600 hover:text-orange-600"
+        className="flex items-center gap-1 text-sm text-gray-600 hover:text-sky-600"
       >
         <ChevronLeft className="h-4 w-4" /> Back
       </button>
@@ -122,7 +122,7 @@ export function ProductDetailView() {
                   key={i}
                   onClick={() => setActiveImage(i)}
                   className={`relative w-16 h-16 rounded border-2 overflow-hidden shrink-0 ${
-                    activeImage === i ? 'border-orange-500' : 'border-gray-200'
+                    activeImage === i ? 'border-sky-500' : 'border-gray-200'
                   }`}
                 >
                   <img src={img} alt="" className="w-full h-full object-cover" />
@@ -152,7 +152,7 @@ export function ProductDetailView() {
                   <span className="text-gray-300">|</span>
                   <button
                     onClick={() => navigate({ name: 'category', categoryId: product.category!.id, categoryName: product.category!.name })}
-                    className="text-sm text-orange-600 hover:underline"
+                    className="text-sm text-sky-600 hover:underline"
                   >
                     {product.category.name}
                   </button>
@@ -162,13 +162,13 @@ export function ProductDetailView() {
           </div>
 
           {/* Price */}
-          <div className="bg-orange-50 p-3 rounded-lg">
+          <div className="bg-sky-50 p-3 rounded-lg">
             <div className="flex items-baseline gap-3 flex-wrap">
-              <span className="text-3xl font-bold text-orange-600">{formatBDT(product.price)}</span>
+              <span className="text-3xl font-bold text-sky-600">{formatBDT(product.price)}</span>
               {product.comparePrice && product.comparePrice > product.price && (
                 <>
                   <span className="text-lg text-gray-400 line-through">{formatBDT(product.comparePrice)}</span>
-                  <span className="bg-orange-600 text-white px-2 py-0.5 rounded text-sm font-bold">
+                  <span className="bg-sky-600 text-white px-2 py-0.5 rounded text-sm font-bold">
                     -{discount}%
                   </span>
                 </>
@@ -207,7 +207,7 @@ export function ProductDetailView() {
             <Button
               onClick={addToCart}
               disabled={product.stock <= 0}
-              className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"
+              className="flex-1 bg-sky-600 hover:bg-sky-700 text-white"
             >
               <ShoppingCart className="h-4 w-4 mr-2" /> Add to Cart
             </Button>
@@ -215,7 +215,7 @@ export function ProductDetailView() {
               onClick={buyNow}
               disabled={product.stock <= 0}
               variant="outline"
-              className="flex-1 border-orange-500 text-orange-600 hover:bg-orange-50"
+              className="flex-1 border-sky-500 text-sky-600 hover:bg-sky-50"
             >
               Buy Now
             </Button>
@@ -224,15 +224,15 @@ export function ProductDetailView() {
           {/* Trust badges */}
           <div className="grid grid-cols-3 gap-2 pt-4 border-t">
             <div className="flex flex-col items-center text-center text-xs text-gray-600">
-              <Truck className="h-5 w-5 text-orange-500 mb-1" />
+              <Truck className="h-5 w-5 text-sky-500 mb-1" />
               Free Shipping
             </div>
             <div className="flex flex-col items-center text-center text-xs text-gray-600">
-              <Shield className="h-5 w-5 text-orange-500 mb-1" />
+              <Shield className="h-5 w-5 text-sky-500 mb-1" />
               Secure Payment
             </div>
             <div className="flex flex-col items-center text-center text-xs text-gray-600">
-              <RotateCcw className="h-5 w-5 text-orange-500 mb-1" />
+              <RotateCcw className="h-5 w-5 text-sky-500 mb-1" />
               7-Day Returns
             </div>
           </div>

@@ -37,7 +37,7 @@ export function OrderSuccessView() {
             </div>
             <div className="flex justify-between mb-3">
               <span className="text-gray-600">Total Paid</span>
-              <span className="font-bold text-orange-600">৳ {Math.round(order.total)}</span>
+              <span className="font-bold text-sky-600">৳ {Math.round(order.total)}</span>
             </div>
             <div className="flex justify-between mb-3">
               <span className="text-gray-600">Payment Method</span>
@@ -49,7 +49,7 @@ export function OrderSuccessView() {
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Status</span>
-              <span className="text-orange-600 font-semibold">{order.status}</span>
+              <span className="text-sky-600 font-semibold">{order.status}</span>
             </div>
           </Card>
         )}
@@ -58,7 +58,7 @@ export function OrderSuccessView() {
           <Button onClick={() => navigate({ name: 'dashboard' })} variant="outline">
             <Package className="h-4 w-4 mr-2" /> View My Orders
           </Button>
-          <Button onClick={() => navigate({ name: 'home' })} className="bg-orange-600 hover:bg-orange-700 text-white">
+          <Button onClick={() => navigate({ name: 'home' })} className="bg-sky-600 hover:bg-sky-700 text-white">
             Continue Shopping
           </Button>
         </div>

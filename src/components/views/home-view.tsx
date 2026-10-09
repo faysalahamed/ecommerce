@@ -73,7 +73,7 @@ export function HomeView({ categories }: { categories: { id: string; name: strin
     <div className="container mx-auto px-3 py-6 space-y-8">
       {/* Hero banner */}
       <section className="grid grid-cols-1 lg:grid-cols-4 gap-3">
-        <div className="lg:col-span-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-xl p-6 sm:p-10 min-h-[200px] flex flex-col justify-center">
+        <div className="lg:col-span-3 bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-xl p-6 sm:p-10 min-h-[200px] flex flex-col justify-center">
           <span className="text-xs font-semibold uppercase tracking-wider opacity-90">Mega Bonanza</span>
           <h1 className="text-3xl sm:text-5xl font-bold mt-2 mb-3">Up to 70% OFF</h1>
           <p className="text-sm sm:text-base opacity-90 mb-4">
@@ -82,7 +82,7 @@ export function HomeView({ categories }: { categories: { id: string; name: strin
           <div className="flex gap-2">
             <Button
               onClick={() => navigate({ name: 'search', query: 'sale' })}
-              className="bg-white text-orange-600 hover:bg-gray-100"
+              className="bg-white text-sky-600 hover:bg-gray-100"
             >
               Shop Now
             </Button>
@@ -110,7 +110,7 @@ export function HomeView({ categories }: { categories: { id: string; name: strin
             <button
               key={c.id}
               onClick={() => navigate({ name: 'category', categoryId: c.id, categoryName: c.name })}
-              className="flex flex-col items-center gap-1 p-3 bg-white border rounded-lg hover:border-orange-400 hover:shadow-md transition-all"
+              className="flex flex-col items-center gap-1 p-3 bg-white border rounded-lg hover:border-sky-400 hover:shadow-md transition-all"
             >
               <span className="text-3xl">{c.icon ? CATEGORY_ICONS[c.icon] || '🛍️' : '🛍️'}</span>
               <span className="text-xs text-gray-700 text-center line-clamp-2">{c.name}</span>
@@ -136,7 +136,7 @@ export function HomeView({ categories }: { categories: { id: string; name: strin
               </div>
               <Button
                 variant="link"
-                className="text-orange-600"
+                className="text-sky-600"
                 onClick={() => navigate({ name: 'search', query: 'flash' })}
               >
                 Shop all →
@@ -165,7 +165,7 @@ export function HomeView({ categories }: { categories: { id: string; name: strin
           <div className="bg-white rounded-xl p-4">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-orange-500" />
+                <TrendingUp className="h-5 w-5 text-sky-500" />
                 <h2 className="text-xl font-bold text-gray-900">Featured Products</h2>
               </div>
             </div>
@@ -191,7 +191,7 @@ export function HomeView({ categories }: { categories: { id: string; name: strin
         <div className="bg-white rounded-xl p-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Flame className="h-5 w-5 text-orange-500" />
+              <Flame className="h-5 w-5 text-sky-500" />
               <h2 className="text-xl font-bold text-gray-900">Just For You</h2>
             </div>
           </div>

@@ -21,46 +21,46 @@ export async function POST() {
 
     const admin = await db.user.create({
       data: {
+        phone: '8801700000001',
         email: 'admin@daraz.local',
         password: adminPass,
         name: 'Site Admin',
         role: 'ADMIN',
-        phone: '+8801700000001',
         address: 'Dhaka, Bangladesh',
       },
     })
 
     const retailer1 = await db.user.create({
       data: {
+        phone: '8801700000002',
         email: 'retailer@daraz.local',
         password: retailerPass,
         name: 'Tech Bazar',
         role: 'RETAILER',
         storeName: 'Tech Bazar',
-        phone: '+8801700000002',
         address: 'Gulshan, Dhaka',
       },
     })
 
     const retailer2 = await db.user.create({
       data: {
+        phone: '8801700000003',
         email: 'fashion@daraz.local',
         password: retailerPass,
         name: 'Fashion Hub',
         role: 'RETAILER',
         storeName: 'Fashion Hub BD',
-        phone: '+8801700000003',
         address: 'Dhanmondi, Dhaka',
       },
     })
 
     const customer = await db.user.create({
       data: {
+        phone: '8801700000004',
         email: 'customer@daraz.local',
         password: customerPass,
         name: 'Rahim Ahmed',
         role: 'CUSTOMER',
-        phone: '+8801700000004',
         address: 'Mirpur, Dhaka',
       },
     })
@@ -172,9 +172,9 @@ export async function POST() {
         products: products.length,
       },
       demoAccounts: {
-        admin: { email: 'admin@daraz.local', password: 'admin123' },
-        retailer: { email: 'retailer@daraz.local', password: 'retailer123' },
-        customer: { email: 'customer@daraz.local', password: 'customer123' },
+        admin: { phone: '8801700000001', email: 'admin@daraz.local', password: 'admin123' },
+        retailer: { phone: '8801700000002', email: 'retailer@daraz.local', password: 'retailer123' },
+        customer: { phone: '8801700000004', email: 'customer@daraz.local', password: 'customer123' },
       },
     })
   } catch (e) {

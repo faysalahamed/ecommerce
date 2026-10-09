@@ -44,7 +44,7 @@ export function ProductListView({ initialQuery }: { initialQuery?: string }) {
         <div>
           <button
             onClick={() => navigate({ name: 'home' })}
-            className="text-sm text-gray-500 hover:text-orange-600"
+            className="text-sm text-gray-500 hover:text-sky-600"
           >
             Home /
           </button>

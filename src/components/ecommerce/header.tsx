@@ -92,7 +92,7 @@ export function Header({ categories }: { categories: CategoryFE[] }) {
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-white shadow-sm">
       {/* Top promo bar */}
-      <div className="bg-orange-600 text-white text-xs sm:text-sm">
+      <div className="bg-sky-600 text-white text-xs sm:text-sm">
         <div className="container mx-auto px-3 py-1.5 flex items-center justify-between">
           <span className="hidden sm:inline">Save more with Daraz-style App — Download now! 📱</span>
           <span className="sm:hidden">Save more with our App! 📱</span>
@@ -112,7 +112,7 @@ export function Header({ categories }: { categories: CategoryFE[] }) {
             className="flex items-center gap-2 shrink-0"
             aria-label="Go to home"
           >
-            <div className="bg-orange-600 text-white px-3 py-1.5 rounded-md text-xl font-bold">
+            <div className="bg-sky-600 text-white px-3 py-1.5 rounded-md text-xl font-bold">
               Daraz
             </div>
           </button>
@@ -125,11 +125,11 @@ export function Header({ categories }: { categories: CategoryFE[] }) {
                 value={localQuery}
                 onChange={(e) => setLocalQuery(e.target.value)}
                 placeholder="Search products, brands and categories..."
-                className="pr-12 h-10 border-orange-500 focus-visible:ring-orange-500"
+                className="pr-12 h-10 border-sky-500 focus-visible:ring-sky-500"
               />
               <button
                 type="submit"
-                className="absolute right-0 top-0 h-10 px-4 rounded-r-md bg-orange-600 hover:bg-orange-700 text-white flex items-center"
+                className="absolute right-0 top-0 h-10 px-4 rounded-r-md bg-sky-600 hover:bg-sky-700 text-white flex items-center"
                 aria-label="Search"
               >
                 <Search className="h-4 w-4" />
@@ -143,12 +143,12 @@ export function Header({ categories }: { categories: CategoryFE[] }) {
               variant="ghost"
               size="sm"
               onClick={() => navigate({ name: 'cart' })}
-              className="relative text-gray-700 hover:text-orange-600"
+              className="relative text-gray-700 hover:text-sky-600"
             >
               <ShoppingCart className="h-5 w-5" />
               <span className="ml-1 hidden sm:inline text-sm">Cart</span>
               {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-orange-600 text-white text-[10px] font-bold rounded-full h-5 min-w-5 px-1 flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 bg-sky-600 text-white text-[10px] font-bold rounded-full h-5 min-w-5 px-1 flex items-center justify-center">
                   {cartCount > 99 ? '99+' : cartCount}
                 </span>
               )}
@@ -159,7 +159,7 @@ export function Header({ categories }: { categories: CategoryFE[] }) {
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-gray-700 hover:text-orange-600 gap-1">
+                <Button variant="ghost" size="sm" className="text-gray-700 hover:text-sky-600 gap-1">
                   <User className="h-5 w-5" />
                   <span className="hidden sm:inline max-w-24 truncate">
                     {user.name.split(' ')[0]}
@@ -170,7 +170,10 @@ export function Header({ categories }: { categories: CategoryFE[] }) {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel className="flex flex-col">
                   <span className="font-semibold">{user.name}</span>
-                  <span className="text-xs text-gray-500 font-normal">{user.email}</span>
+                  <span className="text-xs text-gray-500 font-normal">{user.phone}</span>
+                  {user.email && (
+                    <span className="text-xs text-gray-400 font-normal">{user.email}</span>
+                  )}
                   <Badge variant="outline" className="mt-1 w-fit capitalize">
                     {user.role.toLowerCase()}
                   </Badge>
@@ -209,7 +212,7 @@ export function Header({ categories }: { categories: CategoryFE[] }) {
             <Button
               size="sm"
               onClick={() => openAuth('login')}
-              className="bg-orange-600 hover:bg-orange-700 text-white gap-1"
+              className="bg-sky-600 hover:bg-sky-700 text-white gap-1"
             >
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">Login</span>
@@ -223,13 +226,13 @@ export function Header({ categories }: { categories: CategoryFE[] }) {
         <div className="container mx-auto px-3 py-2 flex items-center gap-1 overflow-x-auto">
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="sm" className="text-orange-600 hover:text-orange-700 font-semibold gap-1">
+              <Button variant="ghost" size="sm" className="text-sky-600 hover:text-sky-700 font-semibold gap-1">
                 <Menu className="h-4 w-4" /> All Categories
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-72">
               <SheetHeader>
-                <SheetTitle className="text-orange-600">Categories</SheetTitle>
+                <SheetTitle className="text-sky-600">Categories</SheetTitle>
               </SheetHeader>
               <div className="mt-4 flex flex-col gap-1 max-h-[80vh] overflow-y-auto">
                 {localCategories.map((c) => (
@@ -238,7 +241,7 @@ export function Header({ categories }: { categories: CategoryFE[] }) {
                     onClick={() => {
                       navigate({ name: 'category', categoryId: c.id, categoryName: c.name })
                     }}
-                    className="flex items-center gap-2 px-3 py-2 hover:bg-orange-50 rounded text-sm text-left"
+                    className="flex items-center gap-2 px-3 py-2 hover:bg-sky-50 rounded text-sm text-left"
                   >
                     <span className="text-lg">{c.icon ? CATEGORY_ICONS[c.icon] || '🛍️' : '🛍️'}</span>
                     {c.name}
@@ -252,12 +255,12 @@ export function Header({ categories }: { categories: CategoryFE[] }) {
             <button
               key={c.id}
               onClick={() => navigate({ name: 'category', categoryId: c.id, categoryName: c.name })}
-              className="px-3 py-1 text-sm text-gray-700 hover:text-orange-600 whitespace-nowrap"
+              className="px-3 py-1 text-sm text-gray-700 hover:text-sky-600 whitespace-nowrap"
             >
               {c.name}
             </button>
           ))}
-          <div className="ml-auto flex gap-2 text-xs text-orange-600 font-semibold">
+          <div className="ml-auto flex gap-2 text-xs text-sky-600 font-semibold">
             <span className="hidden lg:inline">🔥 Flash Sale</span>
             <span className="hidden lg:inline">Bundle Deals</span>
             <span className="hidden lg:inline">Free Shipping</span>
@@ -272,7 +275,7 @@ export function Header({ categories }: { categories: CategoryFE[] }) {
             <button
               key={c.id}
               onClick={() => navigate({ name: 'category', categoryId: c.id, categoryName: c.name })}
-              className="px-2 py-1 text-xs text-gray-700 hover:text-orange-600 whitespace-nowrap"
+              className="px-2 py-1 text-xs text-gray-700 hover:text-sky-600 whitespace-nowrap"
             >
               {c.name}
             </button>
