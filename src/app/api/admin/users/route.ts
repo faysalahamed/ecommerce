@@ -9,7 +9,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Admin only' }, { status: 403 })
     }
     const users = await db.user.findMany({
-      select: { id: true, email: true, name: true, role: true, phone: true, storeName: true, createdAt: true },
+      select: { id: true, email: true, phone: true, name: true, role: true, phoneVerified: true, storeName: true, createdAt: true },
       orderBy: { createdAt: 'desc' },
     })
     return NextResponse.json({ users })

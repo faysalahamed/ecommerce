@@ -418,9 +418,10 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
                   <TableHeader>
                     <TableRow>
                       <TableHead>Name</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Verified</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Role</TableHead>
-                      <TableHead>Phone</TableHead>
                       <TableHead>Created</TableHead>
                       <TableHead>Change Role</TableHead>
                     </TableRow>
@@ -429,11 +430,18 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
                     {users.map((u) => (
                       <TableRow key={u.id}>
                         <TableCell className="font-medium">{u.name}</TableCell>
+                        <TableCell className="text-xs">{u.phone || '—'}</TableCell>
+                        <TableCell>
+                          {u.phoneVerified ? (
+                            <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Verified</Badge>
+                          ) : (
+                            <Badge variant="secondary">Unverified</Badge>
+                          )}
+                        </TableCell>
                         <TableCell className="text-sm">{u.email || '—'}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="capitalize">{u.role.toLowerCase()}</Badge>
                         </TableCell>
-                        <TableCell className="text-xs">{u.phone || '—'}</TableCell>
                         <TableCell className="text-xs">{new Date(u.createdAt).toLocaleDateString()}</TableCell>
                         <TableCell>
                           <Select

@@ -10,22 +10,35 @@ datasource db {
 }
 
 model User {
-  id           String     @id @default(cuid())
-  phone        String     @unique
-  email        String?    @unique
-  password     String
-  name         String
-  role         String     @default("CUSTOMER") // ADMIN | RETAILER | CUSTOMER
-  address      String?
-  avatar       String?
-  storeName    String? // for retailers
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  products     Product[]
-  cartItems    CartItem[]
-  orders       Order[]
-  reviews      Review[]
-  wishlist     Wishlist[]
+  id            String     @id @default(cuid())
+  phone         String     @unique
+  email         String?    @unique
+  password      String
+  name          String
+  role          String     @default("CUSTOMER") // ADMIN | RETAILER | CUSTOMER
+  phoneVerified Boolean    @default(false)
+  address       String?
+  avatar        String?
+  storeName     String? // for retailers
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  products      Product[]
+  cartItems     CartItem[]
+  orders        Order[]
+  reviews       Review[]
+  wishlist      Wishlist[]
+}
+
+// OTP codes for phone verification and password reset.
+// No FK relation to User because registration OTPs are created BEFORE the user exists.
+model OtpCode {
+  id        String   @id @default(cuid())
+  phone     String
+  code      String
+  purpose   String // REGISTER | RESET_PASSWORD | LOGIN
+  expiresAt DateTime
+  consumed   Boolean  @default(false)
+  createdAt DateTime @default(now())
 }
 
 model Category {

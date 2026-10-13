@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { hashPassword, createToken, setSessionCookie } from '@/lib/auth'
+import { normalizePhone } from '@/lib/otp'
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { phone, email, password, name, role, storeName } = body
+    const { phone, email, password, name, role, storeName, otpVerified } = body
 
     if (!phone || !password || !name) {
       return NextResponse.json(
@@ -14,8 +15,32 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Normalize phone: remove leading +, spaces, dashes
-    const normalizedPhone = String(phone).replace(/[+\-\s]/g, '')
+    const normalizedPhone = normalizePhone(phone)
+
+    // Require OTP verification — caller must pass otpVerified=true AND
+    // we double-check by looking for a recently-consumed OTP for this phone + REGISTER
+    if (!otpVerified) {
+      return NextResponse.json(
+        { error: 'Phone number must be verified with OTP before registration' },
+        { status: 400 }
+      )
+    }
+
+    const recentOtp = await db.otpCode.findFirst({
+      where: {
+        phone: normalizedPhone,
+        purpose: 'REGISTER',
+        consumed: true,
+        expiresAt: { gte: new Date(Date.now() - 30 * 60 * 1000) }, // consumed within last 30 min
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+    if (!recentOtp) {
+      return NextResponse.json(
+        { error: 'Phone verification not found. Please request and verify an OTP first.' },
+        { status: 400 }
+      )
+    }
 
     // Check phone uniqueness
     const existingByPhone = await db.user.findUnique({ where: { phone: normalizedPhone } })
@@ -43,13 +68,14 @@ export async function POST(req: NextRequest) {
         password: hashed,
         name,
         role: finalRole,
+        phoneVerified: true,
         storeName: finalRole === 'RETAILER' ? storeName || null : null,
       },
     })
 
     const token = await createToken({
       userId: user.id,
-      email: user.phone, // use phone as the primary identifier in JWT
+      email: user.phone,
       role: user.role,
       name: user.name,
     })
@@ -62,6 +88,7 @@ export async function POST(req: NextRequest) {
         email: user.email,
         name: user.name,
         role: user.role,
+        phoneVerified: user.phoneVerified,
         storeName: user.storeName,
       },
     })

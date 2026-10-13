@@ -16,6 +16,7 @@ export async function GET() {
         phone: true,
         name: true,
         role: true,
+        phoneVerified: true,
         address: true,
         storeName: true,
         avatar: true,

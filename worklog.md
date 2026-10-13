@@ -129,3 +129,87 @@ Stage Summary:
   - Phone login: 8801700000002 / retailer123 (or retailer@daraz.local / retailer123)
   - Phone login: 8801700000004 / customer123 (or customer@daraz.local / customer123)
 - All existing features (cart, checkout, payment gateway, dashboards) remain fully functional with the new theme and auth flow
+
+---
+Task ID: 3
+Agent: Super Z (main)
+Task: Add SMS OTP verification for phone registration AND "Forgot password" reset flow
+
+Work Log:
+- Added OtpCode model to Prisma schema (id, phone, code, purpose, expiresAt, consumed, createdAt). Removed FK to User so registration OTPs can be created BEFORE the user exists.
+- Added `phoneVerified Boolean @default(false)` field to User model.
+- Pushed schema to SQLite.
+- Created `src/lib/otp.ts` library:
+  - `generateOtp()` — 6-digit random code
+  - `normalizePhone()` — strips +, -, spaces
+  - `sendOtp(phone, purpose)` — creates OtpCode with 5-min TTL + 60s resend cooldown
+  - `verifyOtp(phone, code, purpose)` — validates code, marks consumed on success
+- Created 4 new API routes:
+  - `POST /api/auth/send-otp` — { phone, purpose } → returns code (dev mode only; in prod would dispatch SMS)
+  - `POST /api/auth/verify-otp` — { phone, code, purpose } → verifies and marks consumed
+  - `POST /api/auth/forgot-password` — { phoneOrEmail } → looks up user, sends OTP, returns masked phone (e.g. `****0004`); for security, returns `ok:true` even if account doesn't exist (no enumeration)
+  - `POST /api/auth/reset-password` — { phoneOrEmail, code, newPassword } → verifies OTP, updates password, invalidates all outstanding OTPs for the phone
+- Updated `POST /api/auth/register` to require `otpVerified: true` + a recently-consumed REGISTER OTP in the database — prevents account creation without phone verification.
+- Updated `GET /api/auth/me` to return `phoneVerified` field.
+- Updated `GET /api/admin/users` to return `phoneVerified` field.
+- Updated `src/lib/store.ts` UserFE type to include `phoneVerified?: boolean`.
+- Rebuilt Auth Modal (`src/components/ecommerce/auth-modal.tsx`) with multi-step flows:
+  - **Register**: Step 1 (name, phone, optional email, password, role, store) → click "Send OTP" → Step 2 (enter 6-digit code) → click "Verify & Create Account"
+  - **Login**: standard single-step form, but now includes "Forgot password?" link next to Password label
+  - **Forgot password**: 3-step flow with visual step indicator (1→2→3 dots)
+    - Step 1: enter phone or email → click "Send OTP" → masked phone shown
+    - Step 2: enter 6-digit code (auto-focused, large input) → click "Verify OTP"
+    - Step 3: enter new password → click "Reset Password"
+  - 60s resend cooldown timer with live countdown display
+  - "Resend OTP" button on verify steps
+  - "← Back to Login" / "← Edit details" navigation
+  - Toast notifications show the OTP code (demo mode — no real SMS gateway available)
+- Updated Admin Dashboard Users table:
+  - New "Verified" column showing green "Verified" or gray "Unverified" badge based on `phoneVerified`
+  - Reordered columns: Name, Phone, Verified, Email, Role, Created, Change Role
+- Updated seed route to set `phoneVerified: true` on all demo accounts.
+- Restarted dev server to pick up regenerated Prisma client (with new `phoneVerified` field).
+- Re-seeded database.
+
+Verified end-to-end via curl:
+- POST /api/auth/send-otp for new phone (REGISTER) → 200 OK with code
+- POST /api/auth/verify-otp with wrong code → 400 "Invalid OTP code"
+- POST /api/auth/verify-otp with correct code → 200 OK
+- POST /api/auth/register with otpVerified=false → 400 "Phone number must be verified"
+- POST /api/auth/register with otpVerified=true and recently-consumed OTP → 200 OK, account created, phoneVerified=true
+- POST /api/auth/forgot-password for existing email → 200 OK with code + masked phone
+- POST /api/auth/forgot-password for non-existent email → 200 OK with generic message (no enumeration)
+- POST /api/auth/forgot-password second time within 60s → 429 with cooldown
+- POST /api/auth/reset-password with wrong code → 400 "Invalid OTP code"
+- POST /api/auth/reset-password with correct code + new password → 200 OK
+- POST /api/auth/login with OLD password → 401 (invalid)
+- POST /api/auth/login with NEW password → 200 OK
+
+Verified end-to-end via agent-browser:
+- Opened login modal — saw new "Forgot password?" link
+- Clicked "Forgot password?" → 3-step Reset Password dialog opened
+- Entered customer's email → clicked "Send OTP" → toast showed "OTP sent! Demo code: 459764" + masked phone `****0004` displayed
+- Entered OTP → clicked "Verify OTP" → step 3 (New Password) appeared
+- Entered new password → clicked "Reset Password" → success toast → returned to home (logged out)
+- Logged in with the new password → 200 OK, logged in as "Rahim"
+- Opened Register tab → filled name, phone, optional email, password, role → clicked "Send OTP"
+- Toast showed "OTP sent! Demo code: 422133" → Step 2 (OTP entry) appeared
+- Entered OTP → clicked "Verify & Create Account" → account created, logged in automatically as "Test Browser User"
+- Admin Users table now shows Verified column with green badges for all 4 demo accounts
+
+Stage Summary:
+- SMS OTP verification (simulated) is fully integrated into registration — no account can be created without verifying the phone number with a 6-digit code
+- Forgot password flow is fully functional with 3-step UI: identify → verify → reset
+- Phone is the primary account identifier; email remains optional
+- All existing features (login, cart, checkout, payment, dashboards, search, etc.) remain fully functional
+- Lint passes clean (0 errors, 0 warnings)
+- Dev server is running; demo passwords have been restored via re-seed
+- Demo accounts (unchanged):
+  - admin@daraz.local / admin123 (or 8801700000001 / admin123)
+  - retailer@daraz.local / retailer123 (or 8801700000002 / retailer123)
+  - customer@daraz.local / customer123 (or 8801700000004 / customer123)
+- In production, you would:
+  1. Replace the demo "code returned in JSON" with a real SMS provider (Twilio, Vonage, or a Bangladesh-based bulk SMS API)
+  2. Remove `code` from the API response — only deliver via SMS
+  3. Remove the "Demo code: XXX" toast on the frontend
+  4. Add rate limiting per phone number / IP

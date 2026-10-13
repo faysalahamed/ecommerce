@@ -26,6 +26,7 @@ export async function POST() {
         password: adminPass,
         name: 'Site Admin',
         role: 'ADMIN',
+        phoneVerified: true,
         address: 'Dhaka, Bangladesh',
       },
     })
@@ -37,6 +38,7 @@ export async function POST() {
         password: retailerPass,
         name: 'Tech Bazar',
         role: 'RETAILER',
+        phoneVerified: true,
         storeName: 'Tech Bazar',
         address: 'Gulshan, Dhaka',
       },
@@ -49,6 +51,7 @@ export async function POST() {
         password: retailerPass,
         name: 'Fashion Hub',
         role: 'RETAILER',
+        phoneVerified: true,
         storeName: 'Fashion Hub BD',
         address: 'Dhanmondi, Dhaka',
       },
@@ -61,6 +64,7 @@ export async function POST() {
         password: customerPass,
         name: 'Rahim Ahmed',
         role: 'CUSTOMER',
+        phoneVerified: true,
         address: 'Mirpur, Dhaka',
       },
     })

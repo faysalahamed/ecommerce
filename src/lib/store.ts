@@ -33,6 +33,7 @@ export interface UserFE {
   phone: string
   name: string
   role: 'ADMIN' | 'RETAILER' | 'CUSTOMER'
+  phoneVerified?: boolean
   address?: string | null
   storeName?: string | null
   avatar?: string | null
