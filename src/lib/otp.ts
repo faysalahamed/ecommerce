@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { sendSms, normalizeToE164 } from '@/lib/sms'
 
 const OTP_TTL_MS = 5 * 60 * 1000 // 5 minutes
 const OTP_RESEND_COOLDOWN_MS = 60 * 1000 // 60 seconds
@@ -15,13 +16,16 @@ export function normalizePhone(input: string): string {
 export interface OtpResult {
   ok: boolean
   error?: string
-  code?: string // returned only in dev mode (no real SMS gateway)
+  code?: string // returned only in dev/demo mode (no real SMS gateway)
   cooldownSeconds?: number
 }
 
 /**
- * Generate and persist an OTP for the given phone + purpose.
- * Returns the OTP code in dev mode (since there's no real SMS gateway).
+ * Generate and persist an OTP for the given phone + purpose, then dispatch via SMS provider.
+ *
+ * - In "demo" mode: returns the code in the response so the frontend can display it via toast.
+ * - In production mode (SMS_PROVIDER=twilio/vonage/sslcompuz/reve/metech): actually sends an SMS
+ *   and does NOT return the code in the response.
  */
 export async function sendOtp(phone: string, purpose: string): Promise<OtpResult> {
   const normalized = normalizePhone(phone)
@@ -48,7 +52,7 @@ export async function sendOtp(phone: string, purpose: string): Promise<OtpResult
   }
 
   const code = generateOtp()
-  const otp = await db.otpCode.create({
+  await db.otpCode.create({
     data: {
       phone: normalized,
       code,
@@ -56,11 +60,29 @@ export async function sendOtp(phone: string, purpose: string): Promise<OtpResult
       expiresAt: new Date(Date.now() + OTP_TTL_MS),
     },
   })
-  void otp
 
-  // In production, you would integrate with an SMS provider (e.g., Twilio, Vonage, bulk SMS BD).
-  // For this demo we return the code in the response so it can be shown to the user via toast.
-  return { ok: true, code }
+  // Send the SMS via the configured provider.
+  // The SMS body should be short, friendly, and include the brand name.
+  const brand = 'Daraz Clone'
+  const purposeText = purpose === 'REGISTER' ? 'verification' : purpose === 'RESET_PASSWORD' ? 'password reset' : 'login'
+  const smsBody = `${brand}: Your ${purposeText} code is ${code}. It expires in 5 minutes. Do not share this code with anyone.`
+
+  const smsResult = await sendSms(normalizeToE164(normalized), smsBody)
+  if (!smsResult.ok) {
+    // SMS dispatch failed — but the OTP is in the DB, so user might still see it in demo mode.
+    // In production with a real provider, surface the error to the user.
+    console.error('SMS dispatch failed:', smsResult.error)
+    return { ok: false, error: `SMS failed: ${smsResult.error}` }
+  }
+
+  // Demo mode returns the code so the UI can show it via toast.
+  // Production mode: do NOT return the code in the response — it's a secret.
+  const isDemo = (process.env.SMS_PROVIDER || 'demo').toLowerCase() === 'demo'
+  if (isDemo) {
+    return { ok: true, code }
+  }
+
+  return { ok: true }
 }
 
 export interface VerifyOtpResult {
@@ -87,3 +109,4 @@ export async function verifyOtp(phone: string, code: string, purpose: string): P
   await db.otpCode.update({ where: { id: record.id }, data: { consumed: true } })
   return { ok: true }
 }
+

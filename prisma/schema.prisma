@@ -1,11 +1,24 @@
 // Prisma schema for Daraz-like e-commerce site
+//
+// Database provider is controlled by the DATABASE_PROVIDER env var.
+// For PostgreSQL (production):  set DATABASE_PROVIDER=postgresql  and
+//   DATABASE_URL="postgresql://user:password@host:5432/daraz?schema=public"
+// For SQLite (local dev):       set DATABASE_PROVIDER=sqlite       and
+//   DATABASE_URL="file:./db/custom.db"
+//
+// To switch from SQLite → PostgreSQL:
+//   1. Provision a PostgreSQL database (Neon / Supabase / Railway / local Postgres)
+//   2. Update .env: DATABASE_PROVIDER=postgresql + DATABASE_URL=postgresql://...
+//   3. Run: bun run db:push   (creates all tables in the new Postgres DB)
+//   4. Run: curl -X POST http://localhost:3000/api/seed   (re-seed demo data)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  // eslint-disable-next-line no-undef
+  provider = env("DATABASE_PROVIDER")
   url      = env("DATABASE_URL")
 }
 

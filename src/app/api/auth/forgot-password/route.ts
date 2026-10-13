@@ -44,11 +44,14 @@ export async function POST(req: NextRequest) {
 
     // Mask the phone for the response (e.g. ****1234)
     const last4 = user.phone.slice(-4)
+    const isDemo = (process.env.SMS_PROVIDER || 'demo').toLowerCase() === 'demo'
     return NextResponse.json({
       ok: true,
-      code: result.code, // dev only
+      ...(result.code && isDemo ? { code: result.code } : {}), // only in demo mode
       phone: `****${last4}`,
-      message: `OTP sent to your phone ending in ${last4}. (Demo mode: code shown in response)`,
+      message: isDemo
+        ? `OTP sent to your phone ending in ${last4}. (Demo mode: code shown in response)`
+        : `OTP sent to your phone ending in ${last4}. Valid for 5 minutes.`,
     })
   } catch (e) {
     console.error('Forgot password error:', e)

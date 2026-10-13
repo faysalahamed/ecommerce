@@ -3,7 +3,10 @@ import { sendOtp } from '@/lib/otp'
 
 // POST /api/auth/send-otp
 // Body: { phone, purpose: "REGISTER" | "RESET_PASSWORD" | "LOGIN" }
-// Returns: { ok, code? (dev only), cooldownSeconds? }
+// Returns:
+//   - In demo mode (SMS_PROVIDER=demo): { ok, code, message } — code is returned so frontend shows it via toast
+//   - In production mode (SMS_PROVIDER=twilio/vonage/sslcompuz/reve/metech): { ok, message } — SMS actually sent, no code in response
+//   - On rate limit: { error, cooldownSeconds } with HTTP 429
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -24,12 +27,15 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // For demo: include code in response since we don't have real SMS gateway.
-    // In production, remove `code` from the response and dispatch via SMS provider.
+    const isDemo = (process.env.SMS_PROVIDER || 'demo').toLowerCase() === 'demo'
+    const message = isDemo
+      ? 'OTP sent. (Demo mode: code shown in response & toast)'
+      : `OTP sent to your phone. Valid for 5 minutes.`
+
     return NextResponse.json({
       ok: true,
-      code: result.code,
-      message: 'OTP sent. (Demo mode: code shown in response & toast)',
+      ...(result.code ? { code: result.code } : {}), // only present in demo mode
+      message,
     })
   } catch (e) {
     console.error('Send OTP error:', e)
