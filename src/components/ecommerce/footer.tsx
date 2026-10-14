@@ -1,6 +1,7 @@
 'use client'
 
 import { useStore } from '@/lib/store'
+import { BRAND } from '@/lib/brand'
 
 const CATEGORY_ICONS: Record<string, string> = {
   laptop: '💻',
@@ -30,10 +31,10 @@ export function Footer({ categories }: { categories: { id: string; name: string;
           </ul>
         </div>
         <div>
-          <h4 className="text-white font-semibold mb-3">Earn With Daraz</h4>
+          <h4 className="text-white font-semibold mb-3">Earn With {BRAND.name}</h4>
           <ul className="space-y-2 text-sm">
             <li className="hover:text-sky-400 cursor-pointer">Become a Seller</li>
-            <li className="hover:text-sky-400 cursor-pointer">Daraz University</li>
+            <li className="hover:text-sky-400 cursor-pointer">{BRAND.name} University</li>
             <li className="hover:text-sky-400 cursor-pointer">Affiliate Program</li>
             <li className="hover:text-sky-400 cursor-pointer">Service Center</li>
           </ul>
@@ -73,7 +74,7 @@ export function Footer({ categories }: { categories: { id: string; name: string;
       </div>
       <div className="border-t border-gray-800">
         <div className="container mx-auto px-4 py-4 text-xs text-gray-500 text-center">
-          © {new Date().getFullYear()} Daraz Clone — Built for demonstration purposes. Not affiliated with daraz.com.bd.
+          © {new Date().getFullYear()} {BRAND.copyrightName}{BRAND.footerNote ? ` — ${BRAND.footerNote}` : ''}
         </div>
       </div>
     </footer>

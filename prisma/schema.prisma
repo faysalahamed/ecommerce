@@ -1,24 +1,31 @@
-// Prisma schema for Daraz-like e-commerce site
+// Prisma schema for the e-commerce site
 //
-// Database provider is controlled by the DATABASE_PROVIDER env var.
-// For PostgreSQL (production):  set DATABASE_PROVIDER=postgresql  and
-//   DATABASE_URL="postgresql://user:password@host:5432/daraz?schema=public"
-// For SQLite (local dev):       set DATABASE_PROVIDER=sqlite       and
-//   DATABASE_URL="file:./db/custom.db"
+// ----------------------------------------------------------------------------
+// SWITCHING DATABASES — change the `provider` line below and update DATABASE_URL.
+// ----------------------------------------------------------------------------
+// For SQLite (local dev, default):
+//   provider = "sqlite"
+//   DATABASE_URL="file:/home/z/my-project/db/custom.db"
 //
-// To switch from SQLite → PostgreSQL:
-//   1. Provision a PostgreSQL database (Neon / Supabase / Railway / local Postgres)
-//   2. Update .env: DATABASE_PROVIDER=postgresql + DATABASE_URL=postgresql://...
-//   3. Run: bun run db:push   (creates all tables in the new Postgres DB)
-//   4. Run: curl -X POST http://localhost:3000/api/seed   (re-seed demo data)
+// For PostgreSQL (production):
+//   provider = "postgresql"
+//   DATABASE_URL="postgresql://user:password@host:5432/shopzilla?schema=public"
+//
+// After changing the provider, run:
+//   bun run db:push        (creates all tables in the new database)
+//   curl -X POST http://localhost:3000/api/seed   (re-seed demo data)
+//
+// Note: Prisma does NOT support env() in the provider argument — it must be
+// a literal string. To switch databases, edit this file. The DATABASE_URL
+// can use env() (it does, below).
+// ----------------------------------------------------------------------------
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  // eslint-disable-next-line no-undef
-  provider = env("DATABASE_PROVIDER")
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 

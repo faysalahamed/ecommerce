@@ -1,12 +1,13 @@
 import bcrypt from 'bcryptjs'
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose'
 import { cookies } from 'next/headers'
+import { BRAND } from '@/lib/brand'
 
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'daraz-clone-secret-key-change-in-production-2024'
+  process.env.JWT_SECRET || BRAND.jwtSecretFallback
 )
 
-const COOKIE_NAME = 'daraz_session'
+const COOKIE_NAME = BRAND.cookieName
 
 export interface SessionPayload extends JWTPayload {
   userId: string

@@ -33,6 +33,7 @@ import {
   ChevronDown,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { BRAND } from '@/lib/brand'
 
 const CATEGORY_ICONS: Record<string, string> = {
   laptop: '💻',
@@ -94,10 +95,10 @@ export function Header({ categories }: { categories: CategoryFE[] }) {
       {/* Top promo bar */}
       <div className="bg-sky-600 text-white text-xs sm:text-sm">
         <div className="container mx-auto px-3 py-1.5 flex items-center justify-between">
-          <span className="hidden sm:inline">Save more with Daraz-style App — Download now! 📱</span>
-          <span className="sm:hidden">Save more with our App! 📱</span>
+          <span className="hidden sm:inline">{BRAND.promoBarText}</span>
+          <span className="sm:hidden">{BRAND.promoBarText}</span>
           <div className="flex gap-4">
-            <span className="hidden sm:inline">📞 +880 9678 123 456</span>
+            <span className="hidden sm:inline">📞 {BRAND.contactPhone}</span>
             <span>Save • Help • Support</span>
           </div>
         </div>
@@ -113,7 +114,7 @@ export function Header({ categories }: { categories: CategoryFE[] }) {
             aria-label="Go to home"
           >
             <div className="bg-sky-600 text-white px-3 py-1.5 rounded-md text-xl font-bold">
-              Daraz
+              {BRAND.name}
             </div>
           </button>
 

@@ -6,6 +6,7 @@ import { ProductCard, type ProductFE } from '@/components/ecommerce/product-card
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Flame, Zap, TrendingUp, Clock } from 'lucide-react'
+import { HeroSlider } from '@/components/ecommerce/hero-slider'
 
 const CATEGORY_ICONS: Record<string, string> = {
   laptop: '💻',
@@ -71,22 +72,10 @@ export function HomeView({ categories }: { categories: { id: string; name: strin
 
   return (
     <div className="container mx-auto px-3 py-6 space-y-8">
-      {/* Hero banner */}
+      {/* Hero slider — autoplay carousel with 5 slides */}
       <section className="grid grid-cols-1 lg:grid-cols-4 gap-3">
-        <div className="lg:col-span-3 bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-xl p-6 sm:p-10 min-h-[200px] flex flex-col justify-center">
-          <span className="text-xs font-semibold uppercase tracking-wider opacity-90">Mega Bonanza</span>
-          <h1 className="text-3xl sm:text-5xl font-bold mt-2 mb-3">Up to 70% OFF</h1>
-          <p className="text-sm sm:text-base opacity-90 mb-4">
-            Discover amazing deals across all categories — Electronics, Fashion, Home & more!
-          </p>
-          <div className="flex gap-2">
-            <Button
-              onClick={() => navigate({ name: 'search', query: 'sale' })}
-              className="bg-white text-sky-600 hover:bg-gray-100"
-            >
-              Shop Now
-            </Button>
-          </div>
+        <div className="lg:col-span-3">
+          <HeroSlider />
         </div>
         <div className="hidden lg:grid grid-rows-2 gap-3">
           <div className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-xl p-5 flex flex-col justify-center">

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { hashPassword } from '@/lib/auth'
+import { BRAND } from '@/lib/brand'
 
 export async function POST() {
   try {
@@ -22,7 +23,7 @@ export async function POST() {
     const admin = await db.user.create({
       data: {
         phone: '8801700000001',
-        email: 'admin@daraz.local',
+        email: `admin@${BRAND.demoEmailDomain}`,
         password: adminPass,
         name: 'Site Admin',
         role: 'ADMIN',
@@ -34,7 +35,7 @@ export async function POST() {
     const retailer1 = await db.user.create({
       data: {
         phone: '8801700000002',
-        email: 'retailer@daraz.local',
+        email: `retailer@${BRAND.demoEmailDomain}`,
         password: retailerPass,
         name: 'Tech Bazar',
         role: 'RETAILER',
@@ -47,7 +48,7 @@ export async function POST() {
     const retailer2 = await db.user.create({
       data: {
         phone: '8801700000003',
-        email: 'fashion@daraz.local',
+        email: `fashion@${BRAND.demoEmailDomain}`,
         password: retailerPass,
         name: 'Fashion Hub',
         role: 'RETAILER',
@@ -60,7 +61,7 @@ export async function POST() {
     const customer = await db.user.create({
       data: {
         phone: '8801700000004',
-        email: 'customer@daraz.local',
+        email: `customer@${BRAND.demoEmailDomain}`,
         password: customerPass,
         name: 'Rahim Ahmed',
         role: 'CUSTOMER',
@@ -95,7 +96,7 @@ export async function POST() {
     const [electronics, fashion, home, smartphones, beauty, sports, groceries, books] = cats
 
     // Image URL generator — using picsum.photos for placeholder product images
-    const img = (seed: number) => `https://picsum.photos/seed/daraz${seed}/600/600`
+    const img = (seed: number) => `https://picsum.photos/seed/${BRAND.name.toLowerCase().replace(/[^a-z]/g, '')}${seed}/600/600`
 
     // Create products
     const products = [
@@ -176,9 +177,9 @@ export async function POST() {
         products: products.length,
       },
       demoAccounts: {
-        admin: { phone: '8801700000001', email: 'admin@daraz.local', password: 'admin123' },
-        retailer: { phone: '8801700000002', email: 'retailer@daraz.local', password: 'retailer123' },
-        customer: { phone: '8801700000004', email: 'customer@daraz.local', password: 'customer123' },
+        admin: { phone: '8801700000001', email: `admin@${BRAND.demoEmailDomain}`, password: 'admin123' },
+        retailer: { phone: '8801700000002', email: `retailer@${BRAND.demoEmailDomain}`, password: 'retailer123' },
+        customer: { phone: '8801700000004', email: `customer@${BRAND.demoEmailDomain}`, password: 'customer123' },
       },
     })
   } catch (e) {

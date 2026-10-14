@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { sendSms, normalizeToE164 } from '@/lib/sms'
+import { BRAND } from '@/lib/brand'
 
 const OTP_TTL_MS = 5 * 60 * 1000 // 5 minutes
 const OTP_RESEND_COOLDOWN_MS = 60 * 1000 // 60 seconds
@@ -63,9 +64,8 @@ export async function sendOtp(phone: string, purpose: string): Promise<OtpResult
 
   // Send the SMS via the configured provider.
   // The SMS body should be short, friendly, and include the brand name.
-  const brand = 'Daraz Clone'
   const purposeText = purpose === 'REGISTER' ? 'verification' : purpose === 'RESET_PASSWORD' ? 'password reset' : 'login'
-  const smsBody = `${brand}: Your ${purposeText} code is ${code}. It expires in 5 minutes. Do not share this code with anyone.`
+  const smsBody = `${BRAND.name}: Your ${purposeText} code is ${code}. It expires in 5 minutes. Do not share this code with anyone.`
 
   const smsResult = await sendSms(normalizeToE164(normalized), smsBody)
   if (!smsResult.ok) {

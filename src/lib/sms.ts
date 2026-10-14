@@ -16,6 +16,8 @@
  *   2. Add the corresponding env vars to .env and .env.example.
  */
 
+import { BRAND } from '@/lib/brand'
+
 export interface SendSmsResult {
   ok: boolean
   error?: string
@@ -110,7 +112,7 @@ async function sendViaTwilio(to: string, text: string): Promise<SendSmsResult> {
 async function sendViaVonage(to: string, text: string): Promise<SendSmsResult> {
   const apiKey = process.env.VONAGE_API_KEY
   const apiSecret = process.env.VONAGE_API_SECRET
-  const from = process.env.VONAGE_FROM || 'Daraz'
+  const from = process.env.VONAGE_FROM || BRAND.sms.vonageFrom
   if (!apiKey || !apiSecret) {
     return { ok: false, error: 'Vonage env vars not configured (VONAGE_API_KEY, VONAGE_API_SECRET)' }
   }
@@ -151,7 +153,7 @@ async function sendViaVonage(to: string, text: string): Promise<SendSmsResult> {
 async function sendViaSslCompuz(to: string, text: string): Promise<SendSmsResult> {
   const apiKey = process.env.SSL_COMPUZ_API_KEY
   const sid = process.env.SSL_COMPUZ_SID
-  const from = process.env.SSL_COMPUZ_FROM || 'DarazBD'
+  const from = process.env.SSL_COMPUZ_FROM || BRAND.sms.sslCompuzFrom
   if (!apiKey || !sid) {
     return { ok: false, error: 'SSL COMPUZ env vars not configured (SSL_COMPUZ_API_KEY, SSL_COMPUZ_SID)' }
   }
@@ -170,7 +172,7 @@ async function sendViaSslCompuz(to: string, text: string): Promise<SendSmsResult
     sid,
     msisdn: finalTo,
     sms: text,
-    csms_id: 'daraz-' + Date.now(),
+    csms_id: `${BRAND.name.toLowerCase()}-${Date.now()}`,
   }
 
   try {
@@ -198,7 +200,7 @@ async function sendViaSslCompuz(to: string, text: string): Promise<SendSmsResult
 // ---------------------------------------------------------------------------
 async function sendViaReve(to: string, text: string): Promise<SendSmsResult> {
   const apiKey = process.env.REVE_API_KEY
-  const senderId = process.env.REVE_SENDER_ID || 'Daraz'
+  const senderId = process.env.REVE_SENDER_ID || BRAND.sms.reveSenderId
   if (!apiKey) {
     return { ok: false, error: 'REVE env vars not configured (REVE_API_KEY)' }
   }
@@ -237,7 +239,7 @@ async function sendViaReve(to: string, text: string): Promise<SendSmsResult> {
 // ---------------------------------------------------------------------------
 async function sendViaMetech(to: string, text: string): Promise<SendSmsResult> {
   const apiKey = process.env.METECH_API_KEY
-  const senderId = process.env.METECH_SENDER_ID || 'Daraz'
+  const senderId = process.env.METECH_SENDER_ID || BRAND.sms.metechSenderId
   if (!apiKey) {
     return { ok: false, error: 'Metech env vars not configured (METECH_API_KEY)' }
   }

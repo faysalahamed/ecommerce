@@ -16,6 +16,7 @@ import { DashboardView } from '@/components/views/dashboard-view'
 import { Button } from '@/components/ui/button'
 import { Database, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { BRAND } from '@/lib/brand'
 
 export default function Home() {
   const view = useStore((s) => s.view)
@@ -82,7 +83,7 @@ export default function Home() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
         <Loader2 className="h-8 w-8 text-sky-600 animate-spin mb-3" />
-        <p className="text-gray-600 text-sm">Loading Daraz...</p>
+        <p className="text-gray-600 text-sm">Loading {BRAND.name}...</p>
       </div>
     )
   }
@@ -97,7 +98,7 @@ export default function Home() {
             <div className="bg-sky-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
               <Database className="h-10 w-10 text-sky-600" />
             </div>
-            <h1 className="text-2xl font-bold mb-3">Welcome to Daraz Clone</h1>
+            <h1 className="text-2xl font-bold mb-3">Welcome to {BRAND.name}</h1>
             <p className="text-gray-600 mb-6">
               The marketplace is empty. Click the button below to seed demo data — categories, products, and demo user accounts (admin, retailer, customer).
             </p>
@@ -120,7 +121,7 @@ export default function Home() {
               )}
             </Button>
             <p className="text-xs text-gray-400 mt-4">
-              Demo accounts (phone or email): admin@daraz.local / admin123 • +8801700000002 / retailer123 • +8801700000004 / customer123
+              Demo accounts (phone or email): admin@{BRAND.demoEmailDomain} / admin123 • +8801700000002 / retailer123 • +8801700000004 / customer123
             </p>
           </div>
         </main>

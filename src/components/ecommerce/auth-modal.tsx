@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useStore } from '@/lib/store'
+import { BRAND } from '@/lib/brand'
 import { toast } from 'sonner'
 import { Loader2, Phone, ShieldCheck, KeyRound } from 'lucide-react'
 
@@ -253,7 +254,7 @@ export function AuthModal() {
 
   const fillDemo = (role: 'admin' | 'retailer' | 'customer') => {
     const creds = {
-      admin: { id: 'admin@daraz.local', password: 'admin123' },
+      admin: { id: `admin@${BRAND.demoEmailDomain}`, password: 'admin123' },
       retailer: { id: '+8801700000002', password: 'retailer123' },
       customer: { id: '+8801700000004', password: 'customer123' },
     }[role]
@@ -274,7 +275,7 @@ export function AuthModal() {
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-sky-600">
-            {dialogMode === 'forgot' ? 'Reset Password' : 'Welcome to Daraz'}
+            {dialogMode === 'forgot' ? 'Reset Password' : `Welcome to ${BRAND.name}`}
           </DialogTitle>
           <DialogDescription>
             {dialogMode === 'forgot'
