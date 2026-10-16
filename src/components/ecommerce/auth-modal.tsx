@@ -24,6 +24,18 @@ export function AuthModal() {
   const [loading, setLoading] = useState(false)
   const [mode, setMode] = useState<Mode>('login')
 
+  // Whether OTP verification is enabled (server-controlled via OTP_ENABLED env var)
+  const [otpEnabled, setOtpEnabled] = useState(true)
+
+  // Fetch the OTP-enabled flag from /api/config so the UI matches the server.
+  // When OTP is disabled, registration becomes single-step (no OTP verification).
+  useEffect(() => {
+    fetch('/api/config')
+      .then((r) => r.json())
+      .then((d) => setOtpEnabled(d.otpEnabled !== false))
+      .catch(() => setOtpEnabled(true)) // default to true if config endpoint fails
+  }, [])
+
   // Sync mode with authModal changes
   useEffect(() => {
     if (authModal === 'register') setMode('register')
@@ -115,6 +127,11 @@ export function AuthModal() {
   }
 
   const sendRegOtp = async () => {
+    // If OTP is disabled on the server, skip OTP step — go straight to account creation.
+    if (!otpEnabled) {
+      await registerDirect()
+      return
+    }
     if (!regPhone.trim()) {
       toast.error('Please enter your phone number')
       return
@@ -137,6 +154,43 @@ export function AuthModal() {
       setRegStep(2)
     } catch {
       toast.error('Failed to send OTP')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Direct registration — used when OTP is disabled. Submits the form to
+  // /api/auth/register WITHOUT calling /api/auth/verify-otp first.
+  const registerDirect = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: regName,
+          phone: regPhone,
+          email: regEmail || undefined,
+          password: regPassword,
+          role: regRole,
+          storeName: regStoreName || undefined,
+          // otpVerified is omitted — server will accept the request because OTP_ENABLED=false
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'Registration failed')
+        return
+      }
+      setUser(data.user)
+      toast.success('Account created successfully!')
+      handleClose()
+      await refreshCart()
+      if (regRole === 'RETAILER') {
+        navigate({ name: 'dashboard' })
+      }
+    } catch {
+      toast.error('Registration failed')
     } finally {
       setLoading(false)
     }
@@ -453,20 +507,22 @@ export function AuthModal() {
               </form>
             </TabsContent>
 
-            {/* REGISTER — TWO STEPS */}
+            {/* REGISTER — TWO STEPS (or single-step if OTP disabled) */}
             <TabsContent value="register">
-              {/* Step indicator */}
-              <div className="flex items-center gap-2 text-xs text-gray-500 mb-3 mt-2">
-                <div className={`flex items-center gap-1 ${regStep >= 1 ? 'text-sky-600' : ''}`}>
-                  <span className={`rounded-full w-5 h-5 flex items-center justify-center ${regStep >= 1 ? 'bg-sky-600 text-white' : 'bg-gray-200'}`}>1</span>
-                  Details
+              {/* Step indicator — hidden when OTP is disabled (single-step) */}
+              {otpEnabled && (
+                <div className="flex items-center gap-2 text-xs text-gray-500 mb-3 mt-2">
+                  <div className={`flex items-center gap-1 ${regStep >= 1 ? 'text-sky-600' : ''}`}>
+                    <span className={`rounded-full w-5 h-5 flex items-center justify-center ${regStep >= 1 ? 'bg-sky-600 text-white' : 'bg-gray-200'}`}>1</span>
+                    Details
+                  </div>
+                  <div className="flex-1 border-t border-gray-200" />
+                  <div className={`flex items-center gap-1 ${regStep >= 2 ? 'text-sky-600' : ''}`}>
+                    <span className={`rounded-full w-5 h-5 flex items-center justify-center ${regStep >= 2 ? 'bg-sky-600 text-white' : 'bg-gray-200'}`}>2</span>
+                    Verify OTP
+                  </div>
                 </div>
-                <div className="flex-1 border-t border-gray-200" />
-                <div className={`flex items-center gap-1 ${regStep >= 2 ? 'text-sky-600' : ''}`}>
-                  <span className={`rounded-full w-5 h-5 flex items-center justify-center ${regStep >= 2 ? 'bg-sky-600 text-white' : 'bg-gray-200'}`}>2</span>
-                  Verify OTP
-                </div>
-              </div>
+              )}
 
               {regStep === 1 && (
                 <form
@@ -488,7 +544,11 @@ export function AuthModal() {
                       placeholder="01XXXXXXXXX (used to login)"
                       autoComplete="tel"
                     />
-                    <p className="text-[11px] text-gray-500 mt-1">An OTP will be sent to this number.</p>
+                    <p className="text-[11px] text-gray-500 mt-1">
+                      {otpEnabled
+                        ? 'An OTP will be sent to this number to verify it.'
+                        : 'This will be your account ID. OTP verification is currently disabled.'}
+                    </p>
                   </div>
                   <div>
                     <Label htmlFor="remail">Email (optional)</Label>
@@ -545,8 +605,19 @@ export function AuthModal() {
                   )}
                   <Button type="submit" className="w-full bg-sky-600 hover:bg-sky-700 text-white" disabled={loading}>
                     {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                    <Phone className="h-4 w-4 mr-2" /> Send OTP
+                    {otpEnabled ? (
+                      <>
+                        <Phone className="h-4 w-4 mr-2" /> Send OTP
+                      </>
+                    ) : (
+                      'Create Account'
+                    )}
                   </Button>
+                  {!otpEnabled && (
+                    <p className="text-[11px] text-gray-500 text-center">
+                      OTP verification is disabled. Your account will be created directly with phoneVerified=true.
+                    </p>
+                  )}
                 </form>
               )}
 

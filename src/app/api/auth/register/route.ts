@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { hashPassword, createToken, setSessionCookie } from '@/lib/auth'
 import { normalizePhone } from '@/lib/otp'
+import { isOtpEnabled } from '@/lib/config'
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,29 +18,40 @@ export async function POST(req: NextRequest) {
 
     const normalizedPhone = normalizePhone(phone)
 
-    // Require OTP verification — caller must pass otpVerified=true AND
-    // we double-check by looking for a recently-consumed OTP for this phone + REGISTER
-    if (!otpVerified) {
-      return NextResponse.json(
-        { error: 'Phone number must be verified with OTP before registration' },
-        { status: 400 }
-      )
-    }
+    // OTP verification requirement — toggle with OTP_ENABLED env var.
+    // When OTP is disabled, accounts are created directly with phoneVerified=true.
+    const otpRequired = isOtpEnabled()
+    let phoneVerified = false
 
-    const recentOtp = await db.otpCode.findFirst({
-      where: {
-        phone: normalizedPhone,
-        purpose: 'REGISTER',
-        consumed: true,
-        expiresAt: { gte: new Date(Date.now() - 30 * 60 * 1000) }, // consumed within last 30 min
-      },
-      orderBy: { createdAt: 'desc' },
-    })
-    if (!recentOtp) {
-      return NextResponse.json(
-        { error: 'Phone verification not found. Please request and verify an OTP first.' },
-        { status: 400 }
-      )
+    if (otpRequired) {
+      // Require OTP verification — caller must pass otpVerified=true AND
+      // we double-check by looking for a recently-consumed OTP for this phone + REGISTER
+      if (!otpVerified) {
+        return NextResponse.json(
+          { error: 'Phone number must be verified with OTP before registration' },
+          { status: 400 }
+        )
+      }
+
+      const recentOtp = await db.otpCode.findFirst({
+        where: {
+          phone: normalizedPhone,
+          purpose: 'REGISTER',
+          consumed: true,
+          expiresAt: { gte: new Date(Date.now() - 30 * 60 * 1000) }, // consumed within last 30 min
+        },
+        orderBy: { createdAt: 'desc' },
+      })
+      if (!recentOtp) {
+        return NextResponse.json(
+          { error: 'Phone verification not found. Please request and verify an OTP first.' },
+          { status: 400 }
+        )
+      }
+      phoneVerified = true
+    } else {
+      // OTP disabled — auto-mark as verified
+      phoneVerified = true
     }
 
     // Check phone uniqueness
@@ -68,7 +80,7 @@ export async function POST(req: NextRequest) {
         password: hashed,
         name,
         role: finalRole,
-        phoneVerified: true,
+        phoneVerified,
         storeName: finalRole === 'RETAILER' ? storeName || null : null,
       },
     })

@@ -376,3 +376,52 @@ Stage Summary:
   - Home page product cards (Add to Cart button)
   - Product detail page (Add to Cart + Buy Now buttons)
   - Cart refresh on page load (silent detection — doesn't show toast)
+
+---
+Task ID: 8
+Agent: Super Z (main)
+Task: Make OTP requirement toggleable via env var (so user can deploy without an SMS provider), AND fix the "please login first" issue on the deployed server (likely caused by the `secure: true` cookie flag in NODE_ENV=production)
+
+Work Log:
+- Created `src/lib/config.ts` with `isOtpEnabled()` helper that reads `OTP_ENABLED` env var (default: true)
+- Updated `/api/auth/register` route to:
+  - When `OTP_ENABLED=true` (default): existing 2-step flow — requires `otpVerified: true` + a recently-consumed OTP record
+  - When `OTP_ENABLED=false`: skips OTP verification entirely — creates account directly with `phoneVerified: true`
+- Created `GET /api/config` public endpoint that returns `{ otpEnabled: boolean }` so the frontend knows whether to render the OTP step
+- Updated `src/components/ecommerce/auth-modal.tsx`:
+  - Fetches `/api/config` on mount to get the `otpEnabled` flag
+  - When `otpEnabled=false`:
+    - Step indicator (1-Details / 2-Verify OTP) is hidden
+    - "Send OTP" button becomes "Create Account"
+    - Phone field help text changes from "An OTP will be sent to this number." to "This will be your account ID. OTP verification is currently disabled."
+    - Submitting the form calls `registerDirect()` which POSTs to /api/auth/register WITHOUT `otpVerified` (server auto-accepts because OTP_ENABLED=false)
+    - Help text under the button: "OTP verification is disabled. Your account will be created directly with phoneVerified=true."
+  - When `otpEnabled=true` (default): unchanged 2-step flow
+- Updated `src/lib/auth.ts` to make the cookie `secure` flag configurable via env var:
+  - New `SESSION_COOKIE_SECURE` env var:
+    - `true`  → cookie sent ONLY over HTTPS (production best practice)
+    - `false` → cookie sent over HTTP too (use this if your deployment has no SSL)
+    - unset  → defaults to `NODE_ENV === 'production'` (existing behavior)
+  - This is the LIKELY cause of the "please login first" issue on the user's deployed server — if they deployed on HTTP (no SSL), the cookie with `secure: true` would never be stored by the browser, making the user appear logged in but every API call returns 401
+- Updated `.env` and `.env.example` with new feature-flag section:
+  - `OTP_ENABLED=true|false`
+  - `SESSION_COOKIE_SECURE=true|false`
+  - Clear comments explaining each option
+
+Verified end-to-end via curl + agent-browser:
+- With `OTP_ENABLED=false`:
+  - `/api/config` returns `{"otpEnabled":false}` ✓
+  - Direct register API without `otpVerified`: 200 OK, account created with phoneVerified=true ✓
+  - Browser: Register tab shows "Create Account" button (not "Send OTP"), no step indicator ✓
+  - Filled form (name, phone 01755556666, password), clicked "Create Account" → account created, logged in ✓
+  - Add to Cart works for the new account ✓ (cart count 0→1)
+- With `OTP_ENABLED=true` (default):
+  - `/api/config` returns `{"otpEnabled":true}` ✓
+  - Direct register without `otpVerified`: 400 "Phone number must be verified with OTP before registration" ✓ (rejection works)
+  - Browser: Register tab shows 2-step flow with "Send OTP" button + step indicator ✓
+- Final lint: passes clean (0 errors, 0 warnings)
+- Re-seeded database to restore clean demo state
+
+Stage Summary:
+- **OTP is now toggleable.** Set `OTP_ENABLED=false` in your `.env` to disable OTP verification. Users can register with just name + phone + password — no SMS provider needed. Set `OTP_ENABLED=true` (or leave unset) to re-enable OTP. Requires a dev server restart to take effect.
+- **Cookie `secure` flag is also configurable.** Set `SESSION_COOKIE_SECURE=false` in your `.env` if your deployment is on HTTP (no SSL). This is the most likely fix for the "please login first" issue you saw on your deployed server. (If you add HTTPS later with a Let's Encrypt cert, you can remove this var and the cookie will auto-become secure in production.)

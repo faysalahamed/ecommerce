@@ -9,6 +9,24 @@ const JWT_SECRET = new TextEncoder().encode(
 
 const COOKIE_NAME = BRAND.cookieName
 
+// Cookie `secure` flag.
+// - When true: cookie is only sent over HTTPS (production best practice)
+// - When false: cookie is sent over HTTP too (for HTTP-only dev / VPS without SSL)
+//
+// Default behaviour:
+//   - In production (NODE_ENV=production): secure=true
+//   - In dev: secure=false
+//
+// Override with `SESSION_COOKIE_SECURE=true|false` in .env. Use `false` if
+// you deployed on HTTP (e.g., VPS without SSL, local testing on a real device).
+function shouldUseSecureCookie(): boolean {
+  const explicit = process.env.SESSION_COOKIE_SECURE?.toLowerCase()
+  if (explicit === 'true') return true
+  if (explicit === 'false') return false
+  // Default: secure only in production
+  return process.env.NODE_ENV === 'production'
+}
+
 export interface SessionPayload extends JWTPayload {
   userId: string
   email: string
@@ -45,7 +63,7 @@ export async function setSessionCookie(token: string) {
   const cookieStore = await cookies()
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: shouldUseSecureCookie(),
     sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 7, // 7 days
     path: '/',
