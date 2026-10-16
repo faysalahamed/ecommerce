@@ -101,6 +101,13 @@ export const useStore = create<StoreState>((set, get) => ({
   refreshCart: async () => {
     try {
       const res = await fetch('/api/cart')
+      if (res.status === 401) {
+        // Session expired or stale — clear user state and empty cart.
+        // Don't toast here (would be noisy on every page load); the user
+        // will see the login prompt the next time they try an authed action.
+        set({ user: null, cartItems: [], cartCount: 0 })
+        return
+      }
       const data = await res.json()
       const items = data.items || []
       set({

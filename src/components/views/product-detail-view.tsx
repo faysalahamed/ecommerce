@@ -15,6 +15,7 @@ export function ProductDetailView() {
   const navigate = useStore((s) => s.navigate)
   const goBack = useStore((s) => s.goBack)
   const user = useStore((s) => s.user)
+  const setUser = useStore((s) => s.setUser)
   const openAuth = useStore((s) => s.openAuth)
   const refreshCart = useStore((s) => s.refreshCart)
 
@@ -59,7 +60,14 @@ export function ProductDetailView() {
       await refreshCart()
     } else {
       const d = await res.json()
-      toast.error(d.error || 'Failed')
+      // If session expired (401), clear stale user state and prompt re-login
+      if (res.status === 401 || d.error?.toLowerCase().includes('login')) {
+        setUser(null)
+        toast.error(d.error || 'Your session has expired. Please login again.')
+        openAuth('login')
+      } else {
+        toast.error(d.error || 'Failed')
+      }
     }
   }
 

@@ -331,3 +331,48 @@ Stage Summary:
   - retailer@shopzilla.local / retailer123 (or 8801700000002 / retailer123)
   - customer@shopzilla.local / customer123 (or 8801700000004 / customer123)
 - Lint passes clean, dev server runs, all features intact (OTP, login, cart, checkout, payment, dashboards)
+
+---
+Task ID: 7
+Agent: Super Z (main)
+Task: Fix "Please login first" error when user is logged in but clicks Add to Cart (stale session state)
+
+Root cause:
+- When I renamed the cookie from `daraz_session` → `shopzilla_session` in task 5, users who had logged in BEFORE the rename still had the OLD `daraz_session` cookie in their browser.
+- After they logged in again with the new code, a fresh `shopzilla_session` cookie was set — and everything worked.
+- BUT — if a user had a stale Zustand `user` state from a previous page load AND their browser cookie was deleted/expired/renamed, the Zustand store would still show them as "logged in" (header shows their name), while the API would reject their request with 401 "Please login first".
+- The original `addToCart` code would just toast the error and not recover — leaving the user stuck.
+
+Work Log:
+- Added `handleAuthFailure()` helper in `src/components/ecommerce/product-card.tsx`:
+  - On 401 (or error message containing "login"), it:
+    1. Calls `setUser(null)` to clear the stale Zustand user state (header re-renders showing "Login")
+    2. Shows the error toast ("Please login first" or "Your session has expired. Please login again.")
+    3. Calls `openAuth('login')` to automatically open the login modal
+  - User can immediately re-login and continue with their cart
+- Applied the same fix to `src/components/views/product-detail-view.tsx` (Buy Now / Add to Cart buttons on product detail page)
+- Updated `refreshCart()` in `src/lib/store.ts` to detect 401 responses:
+  - On 401, clears `user` + `cartItems` + `cartCount` in Zustand
+  - This means stale sessions are automatically detected on every page load (since `refreshCart` runs in the init `useEffect` of `src/app/page.tsx`)
+  - If the user's cookie is gone/expired, the header updates to show "Login" instead of their name — preventing the confusing state where they think they're logged in but every API call fails
+
+Verified end-to-end with agent-browser:
+1. Logged in as customer → header shows "Rahim", cart count = 1
+2. Cleared cookies (simulating the stale-session scenario)
+3. WITHOUT reloading, clicked "Add to Cart":
+   - Toast appeared: "Please login first" ✓
+   - Login modal auto-opened ("Welcome to ShopZilla") ✓
+   - Header button changed from "Rahim" → "Login" ✓
+4. User can now re-login from the auto-opened modal and continue shopping
+- Final lint: passes clean (0 errors, 0 warnings)
+
+Stage Summary:
+- The "Please login first" issue is now self-healing. When a user's session becomes stale (cookie expired, renamed, server restarted with new JWT secret, etc.), the app:
+  1. Detects the 401 from the API
+  2. Clears the stale Zustand user state (header updates)
+  3. Auto-opens the login modal
+  4. Shows a helpful toast explaining what happened
+- This works on:
+  - Home page product cards (Add to Cart button)
+  - Product detail page (Add to Cart + Buy Now buttons)
+  - Cart refresh on page load (silent detection — doesn't show toast)

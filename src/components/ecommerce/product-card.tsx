@@ -31,12 +31,22 @@ export interface ProductFE {
 export function ProductCard({ product, compact = false }: { product: ProductFE; compact?: boolean }) {
   const navigate = useStore((s) => s.navigate)
   const user = useStore((s) => s.user)
+  const setUser = useStore((s) => s.setUser)
   const openAuth = useStore((s) => s.openAuth)
   const refreshCart = useStore((s) => s.refreshCart)
   const [wishlistLoading, setWishlistLoading] = useState(false)
   const [adding, setAdding] = useState(false)
 
   const discount = discountPercent(product.price, product.comparePrice)
+
+  // Helper: handle a 401 response by clearing stale user state + opening login modal.
+  // This recovers from cases where the Zustand store has a stale `user` object
+  // (e.g., after a cookie rename, server restart, or cookie expiry).
+  const handleAuthFailure = (message: string) => {
+    setUser(null) // clear stale user state so the header re-renders
+    toast.error(message)
+    openAuth('login')
+  }
 
   const addToCart = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -57,7 +67,12 @@ export function ProductCard({ product, compact = false }: { product: ProductFE; 
       })
       if (!res.ok) {
         const data = await res.json()
-        toast.error(data.error || 'Failed to add to cart')
+        // If the API says "Please login first", the user state is stale — clear it + open login modal
+        if (res.status === 401 || data.error?.toLowerCase().includes('login')) {
+          handleAuthFailure(data.error || 'Your session has expired. Please login again.')
+        } else {
+          toast.error(data.error || 'Failed to add to cart')
+        }
       } else {
         toast.success('Added to cart')
         await refreshCart()
