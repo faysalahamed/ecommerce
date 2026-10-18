@@ -105,6 +105,6 @@ export const HERO_SLIDES: HeroSlide[] = [
     title: 'New User? Get ৳200 Coupon',
     subtitle: 'First-time customers get an instant ৳200 discount coupon. Sign up today!',
     ctaLabel: 'Create Account',
-    gradient: 'from-amber-500 to-orange-500',
+    gradient: 'from-sky-500 to-cyan-500',
   },
 ]

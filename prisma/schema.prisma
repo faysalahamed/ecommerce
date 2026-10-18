@@ -1,32 +1,23 @@
-// Prisma schema for the e-commerce site
+// Prisma schema for Daraz-like e-commerce site
 //
-// ----------------------------------------------------------------------------
-// SWITCHING DATABASES — change the `provider` line below and update DATABASE_URL.
-// ----------------------------------------------------------------------------
-// For SQLite (local dev, default):
-//   provider = "sqlite"
-//   DATABASE_URL="file:/home/z/my-project/db/custom.db"
+// Database provider is controlled by the DATABASE_PROVIDER env var.
+// For PostgreSQL (production):  set DATABASE_PROVIDER=postgresql  and
+//   DATABASE_URL="postgresql://user:password@host:5432/daraz?schema=public"
+// For SQLite (local dev):       set DATABASE_PROVIDER=sqlite       and
+//   DATABASE_URL="file:./db/custom.db"
 //
-// For PostgreSQL (production):
-//   provider = "postgresql"
-//   DATABASE_URL="postgresql://user:password@host:5432/shopzilla?schema=public"
-//
-// After changing the provider, run:
-//   bun run db:push        (creates all tables in the new database)
-//   curl -X POST http://localhost:3000/api/seed   (re-seed demo data)
-//
-// Note: Prisma does NOT support env() in the provider argument — it must be
-// a literal string. To switch databases, edit this file. The DATABASE_URL
-// can use env() (it does, below).
-// ----------------------------------------------------------------------------
+// To switch from SQLite → PostgreSQL:
+//   1. Provision a PostgreSQL database (Neon / Supabase / Railway / local Postgres)
+//   2. Update .env: DATABASE_PROVIDER=postgresql + DATABASE_URL=postgresql://...
+//   3. Run: bun run db:push   (creates all tables in the new Postgres DB)
+//   4. Run: curl -X POST http://localhost:3000/api/seed   (re-seed demo data)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider = "postgresql"
 }
 
 model User {
@@ -88,17 +79,27 @@ model Product {
   status       String     @default("ACTIVE") // ACTIVE | INACTIVE
   isFlashSale  Boolean    @default(false)
   isFeatured   Boolean    @default(false)
-  brand        String?
-  categoryId   String
-  category     Category   @relation(fields: [categoryId], references: [id])
-  retailerId   String
-  retailer     User       @relation(fields: [retailerId], references: [id])
-  cartItems    CartItem[]
-  orderItems   OrderItem[]
-  reviews      Review[]
-  wishlist     Wishlist[]
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  brand             String?
+  model             String?
+  sku               String?
+  highlights        String?
+  whatsInTheBox     String?
+  warrantyType      String?
+  warrantyPeriod    String?
+  packageWeight     Float?
+  packageDimensions String?
+  videoUrl          String?
+  returnPolicy      String?
+  categoryId        String
+  category          Category    @relation(fields: [categoryId], references: [id])
+  retailerId        String
+  retailer          User        @relation(fields: [retailerId], references: [id])
+  cartItems         CartItem[]
+  orderItems        OrderItem[]
+  reviews           Review[]
+  wishlist          Wishlist[]
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 }
 
 model CartItem {
@@ -163,4 +164,11 @@ model Wishlist {
   createdAt DateTime @default(now())
 
   @@unique([userId, productId])
+}
+
+model SiteConfig {
+  key       String   @id
+  value     String   // json string or text value
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

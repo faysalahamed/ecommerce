@@ -146,8 +146,16 @@ export async function POST() {
     ]
 
     let seed = 1
+    const reviewPool = [
+      { rating: 5, comment: 'Excellent product! Delivery was very fast and packaging was secure.' },
+      { rating: 4, comment: 'Good value for money. Quality is nice and works as expected.' },
+      { rating: 5, comment: 'Highly recommended! Exactly as shown in the pictures.' },
+      { rating: 4, comment: 'Satisfied with the purchase. Will definitely order again from this seller.' },
+      { rating: 5, comment: 'Original authentic item. 100% satisfied with the quality!' },
+    ]
+
     for (const p of products) {
-      await db.product.create({
+      const prod = await db.product.create({
         data: {
           name: p.name,
           slug: p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + seed,
@@ -161,11 +169,30 @@ export async function POST() {
           retailerId: p.ret,
           isFlashSale: p.flash,
           isFeatured: p.featured,
-          rating: 4 + Math.round(Math.random() * 10) / 10,
-          reviewCount: Math.floor(Math.random() * 50),
-          soldCount: Math.floor(Math.random() * 500),
+          rating: 4.5,
+          reviewCount: 2,
+          soldCount: 50 + seed * 12,
         },
       })
+
+      // Create initial demo reviews
+      await db.review.create({
+        data: {
+          productId: prod.id,
+          userId: customer.id,
+          rating: reviewPool[seed % reviewPool.length].rating,
+          comment: reviewPool[seed % reviewPool.length].comment,
+        },
+      })
+      await db.review.create({
+        data: {
+          productId: prod.id,
+          userId: admin.id,
+          rating: reviewPool[(seed + 2) % reviewPool.length].rating,
+          comment: reviewPool[(seed + 2) % reviewPool.length].comment,
+        },
+      })
+
       seed++
     }
 

@@ -22,6 +22,16 @@ export interface ProductFE {
   rating: number
   reviewCount: number
   brand?: string | null
+  model?: string | null
+  sku?: string | null
+  highlights?: string | null
+  whatsInTheBox?: string | null
+  warrantyType?: string | null
+  warrantyPeriod?: string | null
+  packageWeight?: number | null
+  packageDimensions?: string | null
+  videoUrl?: string | null
+  returnPolicy?: string | null
   isFlashSale?: boolean
   isFeatured?: boolean
   category?: { id: string; name: string }
@@ -159,8 +169,8 @@ export function ProductCard({ product, compact = false }: { product: ProductFE; 
         </div>
         {/* Rating */}
         <div className="flex items-center gap-1 text-xs text-gray-500">
-          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-          <span>{product.rating.toFixed(1)}</span>
+          <Star className={`h-3 w-3 ${product.rating > 0 ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+          <span>{product.rating > 0 ? product.rating.toFixed(1) : 'New'}</span>
           <span>•</span>
           <span>{product.soldCount} sold</span>
         </div>

@@ -25,6 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Switch } from '@/components/ui/switch'
 import {
   Package,
   Plus,
@@ -36,10 +37,13 @@ import {
   DollarSign,
   Store,
   Star,
+  Zap,
+  Settings,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatBDT } from '@/lib/format'
 import { useStore as useZustandStore } from '@/lib/store'
+import { DarazProductForm } from '@/components/ecommerce/daraz-product-form'
 
 export function DashboardView({ categories }: { categories: { id: string; name: string }[] }) {
   const user = useZustandStore((s) => s.user)
@@ -65,6 +69,76 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
   const [editingProduct, setEditingProduct] = useState<any | null>(null)
   const [formOpen, setFormOpen] = useState(false)
 
+  // Site Configuration (Admin only)
+  const [bannerTitle, setBannerTitle] = useState('')
+  const [bannerTag, setBannerTag] = useState('')
+  const [bannerEnabled, setBannerEnabled] = useState(false)
+  const [bannerLoading, setBannerLoading] = useState(false)
+
+  const fetchConfig = async () => {
+    try {
+      const res = await fetch('/api/config')
+      const d = await res.json()
+      if (d?.promoBanner) {
+        setBannerTitle(d.promoBanner.title || '')
+        setBannerTag(d.promoBanner.tag || '')
+        setBannerEnabled(true)
+      } else {
+        setBannerTitle('SHOP NOW! 10.10 SHOPPING FEST')
+        setBannerTag('LIMITED TIME OFFER')
+        setBannerEnabled(false)
+      }
+    } catch {}
+  }
+
+  const handleSaveBanner = async () => {
+    setBannerLoading(true)
+    try {
+      const res = await fetch('/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key: 'promo_banner',
+          value: {
+            title: bannerTitle.trim(),
+            tag: bannerTag.trim(),
+            enabled: bannerEnabled,
+          },
+        }),
+      })
+      if (res.ok) {
+        toast.success(
+          bannerEnabled
+            ? 'Promotional banner is now active across products!'
+            : 'Banner settings saved in SiteConfig (currently disabled)'
+        )
+      } else {
+        toast.error('Failed to save configuration')
+      }
+    } catch {
+      toast.error('Network error saving configuration')
+    } finally {
+      setBannerLoading(false)
+    }
+  }
+
+  const handleDeleteBanner = async () => {
+    setBannerLoading(true)
+    try {
+      const res = await fetch('/api/config?key=promo_banner', { method: 'DELETE' })
+      if (res.ok) {
+        setBannerEnabled(false)
+        setBannerTitle('')
+        setBannerTag('')
+        toast.success('Promotional banner deleted from SiteConfig table')
+      }
+    } catch {
+      toast.error('Failed to delete configuration')
+    } finally {
+      setBannerLoading(false)
+    }
+  }
+
   const fetchAll = async () => {
     setLoading(true)
     try {
@@ -87,10 +161,12 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
       setOrders(oData.orders || [])
 
       // Users (admin only)
+      let userCount = 0
       if (user?.role === 'ADMIN') {
         const uRes = await fetch('/api/admin/users')
         const uData = await uRes.json()
         setUsers(uData.users || [])
+        userCount = uData.users?.length || 0
       }
 
       // Compute stats
@@ -99,7 +175,7 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
         totalProducts: pData.products?.length || 0,
         totalOrders: oData.orders?.length || 0,
         totalRevenue: revenue,
-        totalUsers: uData.users?.length || 0,
+        totalUsers: userCount,
       })
     } finally {
       setLoading(false)
@@ -112,6 +188,9 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
       return
     }
     fetchAll()
+    if (user.role === 'ADMIN') {
+      fetchConfig()
+    }
   }, [user])
 
   if (!user) {
@@ -200,10 +279,11 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
 
       {/* Tabs */}
       <Tabs defaultValue={user.role === 'CUSTOMER' ? 'orders' : 'products'}>
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 mb-4">
+        <TabsList className={`grid w-full mb-4 ${user.role === 'ADMIN' ? 'grid-cols-4' : user.role === 'RETAILER' ? 'grid-cols-2' : 'grid-cols-1'}`}>
           {user.role !== 'CUSTOMER' && <TabsTrigger value="products">My Products</TabsTrigger>}
           <TabsTrigger value="orders">{user.role === 'CUSTOMER' ? 'My Orders' : user.role === 'ADMIN' ? 'All Orders' : 'Sales'}</TabsTrigger>
           {user.role === 'ADMIN' && <TabsTrigger value="users">Users</TabsTrigger>}
+          {user.role === 'ADMIN' && <TabsTrigger value="config">Site Config</TabsTrigger>}
         </TabsList>
 
         {/* Products tab */}
@@ -474,10 +554,116 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
             </Card>
           </TabsContent>
         )}
+
+        {/* Site Config tab (admin only) */}
+        {user.role === 'ADMIN' && (
+          <TabsContent value="config">
+            <Card className="p-6 space-y-6">
+              <div>
+                <h2 className="font-bold text-lg text-gray-900 flex items-center gap-2">
+                  <Settings className="h-5 w-5 text-sky-600" /> Site Configuration & Banners
+                </h2>
+                <p className="text-xs text-gray-500 mt-1">
+                  Manage database-backed site configurations stored in the SiteConfig table. If a promotional event banner configuration exists and is enabled, it will appear across product detail pages.
+                </p>
+              </div>
+
+              {/* Promotional Event Banner Card */}
+              <div className="border border-gray-200 rounded-xl p-5 bg-gray-50/50 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                      <Zap className="h-4 w-4 text-sky-600" />
+                      Product Detail Promotional Event Banner
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      Displays a gradient announcement strip directly above product price blocks.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="banner-switch" className="text-xs font-semibold text-gray-700">
+                      {bannerEnabled ? 'Active' : 'Disabled'}
+                    </Label>
+                    <Switch
+                      id="banner-switch"
+                      checked={bannerEnabled}
+                      onCheckedChange={setBannerEnabled}
+                      className="data-[state=checked]:bg-sky-600"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold text-gray-700">Banner Title</Label>
+                    <Input
+                      value={bannerTitle}
+                      onChange={(e) => setBannerTitle(e.target.value)}
+                      placeholder="e.g. SHOP NOW! 10.10 SHOPPING FEST"
+                      className="text-xs h-9 bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold text-gray-700">Tag / Badge Text</Label>
+                    <Input
+                      value={bannerTag}
+                      onChange={(e) => setBannerTag(e.target.value)}
+                      placeholder="e.g. LIMITED TIME OFFER"
+                      className="text-xs h-9 bg-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Live Preview */}
+                {bannerEnabled && bannerTitle.trim() && (
+                  <div className="space-y-1 pt-2">
+                    <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                      Live Preview:
+                    </span>
+                    <div className="bg-gradient-to-r from-sky-500 to-cyan-500 text-white px-3 py-2 rounded-lg flex items-center justify-between text-xs font-bold shadow-xs">
+                      <div className="flex items-center gap-1.5">
+                        <Zap className="h-4 w-4 fill-white text-white" />
+                        <span>{bannerTitle}</span>
+                      </div>
+                      {bannerTag && (
+                        <span className="text-[11px] bg-black/20 px-2 py-0.5 rounded font-normal">
+                          {bannerTag}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-2 justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDeleteBanner}
+                    disabled={bannerLoading}
+                    className="text-xs h-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    Delete Configuration
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleSaveBanner}
+                    disabled={bannerLoading}
+                    className="text-xs h-8 bg-sky-600 hover:bg-sky-700 text-white font-semibold"
+                  >
+                    {bannerLoading ? 'Saving...' : 'Save Configuration'}
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Product form dialog */}
-      <ProductFormDialog
+      {/* Daraz Seller Center Product Input Form */}
+      <DarazProductForm
         open={formOpen}
         onOpenChange={setFormOpen}
         product={editingProduct}
@@ -485,239 +671,5 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
         onSuccess={fetchAll}
       />
     </div>
-  )
-}
-
-// Product form dialog
-function ProductFormDialog({
-  open,
-  onOpenChange,
-  product,
-  categories,
-  onSuccess,
-}: {
-  open: boolean
-  onOpenChange: (b: boolean) => void
-  product: any | null
-  categories: { id: string; name: string }[]
-  onSuccess: () => void
-}) {
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [price, setPrice] = useState('')
-  const [comparePrice, setComparePrice] = useState('')
-  const [stock, setStock] = useState('')
-  const [brand, setBrand] = useState('')
-  const [categoryId, setCategoryId] = useState('')
-  const [images, setImages] = useState<string[]>([])
-  const [imageUrl, setImageUrl] = useState('')
-  const [isFlashSale, setIsFlashSale] = useState(false)
-  const [isFeatured, setIsFeatured] = useState(false)
-  const [saving, setSaving] = useState(false)
-
-  useEffect(() => {
-    if (product) {
-      setName(product.name)
-      setDescription(product.description)
-      setPrice(String(product.price))
-      setComparePrice(product.comparePrice ? String(product.comparePrice) : '')
-      setStock(String(product.stock))
-      setBrand(product.brand || '')
-      setCategoryId(product.categoryId)
-      setImages(product.images || [])
-      setIsFlashSale(!!product.isFlashSale)
-      setIsFeatured(!!product.isFeatured)
-    } else {
-      // defaults
-      setName('')
-      setDescription('')
-      setPrice('')
-      setComparePrice('')
-      setStock('')
-      setBrand('')
-      setCategoryId(categories[0]?.id || '')
-      setImages([])
-      setImageUrl('')
-      setIsFlashSale(false)
-      setIsFeatured(false)
-    }
-  }, [product, categories, open])
-
-  const addImage = () => {
-    if (imageUrl && !images.includes(imageUrl)) {
-      setImages([...images, imageUrl])
-      setImageUrl('')
-    }
-  }
-
-  const removeImage = (idx: number) => {
-    setImages(images.filter((_, i) => i !== idx))
-  }
-
-  const submit = async () => {
-    if (!name || !description || !price || !categoryId) {
-      toast.error('Please fill all required fields')
-      return
-    }
-    if (images.length === 0) {
-      // auto-generate placeholder
-      const placeholder = `https://picsum.photos/seed/${name.replace(/\s/g, '')}/600/600`
-      setImages([placeholder])
-    }
-    setSaving(true)
-    try {
-      const url = product ? `/api/products/${product.id}` : '/api/products'
-      const method = product ? 'PUT' : 'POST'
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          description,
-          price,
-          comparePrice: comparePrice || null,
-          stock: stock || 0,
-          brand: brand || null,
-          categoryId,
-          images,
-          isFlashSale,
-          isFeatured,
-        }),
-      })
-      if (!res.ok) {
-        const d = await res.json()
-        toast.error(d.error || 'Failed')
-        return
-      }
-      toast.success(product ? 'Product updated' : 'Product created')
-      onOpenChange(false)
-      onSuccess()
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{product ? 'Edit Product' : 'Add New Product'}</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-3 mt-2">
-          <div>
-            <Label htmlFor="pname">Product Name *</Label>
-            <Input id="pname" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Wireless Headphones" />
-          </div>
-          <div>
-            <Label htmlFor="pdesc">Description *</Label>
-            <Textarea id="pdesc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Detailed product description" rows={4} />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label htmlFor="pprice">Price (৳) *</Label>
-              <Input id="pprice" type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="999" />
-            </div>
-            <div>
-              <Label htmlFor="pcprice">Compare at Price (৳)</Label>
-              <Input id="pcprice" type="number" value={comparePrice} onChange={(e) => setComparePrice(e.target.value)} placeholder="1299" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label htmlFor="pstock">Stock</Label>
-              <Input id="pstock" type="number" value={stock} onChange={(e) => setStock(e.target.value)} placeholder="50" />
-            </div>
-            <div>
-              <Label htmlFor="pbrand">Brand</Label>
-              <Input id="pbrand" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Brand name" />
-            </div>
-          </div>
-          <div>
-            <Label htmlFor="pcat">Category *</Label>
-            <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger id="pcat">
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Images */}
-          <div>
-            <Label>Product Images</Label>
-            <div className="flex gap-2 mt-1">
-              <Input
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="Paste image URL or generate random"
-              />
-              <Button type="button" size="sm" onClick={addImage} variant="outline">Add</Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => {
-                  const seed = Math.random().toString(36).slice(2, 8)
-                  setImages([...images, `https://picsum.photos/seed/${seed}/600/600`])
-                }}
-                variant="secondary"
-              >
-                Random
-              </Button>
-            </div>
-            <div className="grid grid-cols-4 gap-2 mt-2">
-              {images.map((img, i) => (
-                <div key={i} className="relative aspect-square group">
-                  <img src={img} alt="" className="w-full h-full object-cover rounded border" />
-                  <button
-                    onClick={() => removeImage(i)}
-                    className="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100"
-                    aria-label="remove"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
-            {images.length === 0 && (
-              <p className="text-xs text-gray-500 mt-1">Add at least one image, or click "Random" to auto-generate.</p>
-            )}
-          </div>
-
-          {/* Flags */}
-          <div className="flex gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isFlashSale}
-                onChange={(e) => setIsFlashSale(e.target.checked)}
-                className="rounded"
-              />
-              <span className="text-sm">Flash Sale</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isFeatured}
-                onChange={(e) => setIsFeatured(e.target.checked)}
-                className="rounded"
-              />
-              <span className="text-sm">Featured</span>
-            </label>
-          </div>
-
-          <div className="flex gap-2 pt-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">Cancel</Button>
-            <Button onClick={submit} disabled={saving} className="flex-1 bg-sky-600 hover:bg-sky-700 text-white">
-              {saving ? 'Saving...' : product ? 'Update Product' : 'Add Product'}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
   )
 }

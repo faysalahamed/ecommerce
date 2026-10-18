@@ -61,7 +61,28 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { name, description, price, comparePrice, images, stock, categoryId, brand } = body
+    const {
+      name,
+      description,
+      price,
+      comparePrice,
+      images,
+      stock,
+      categoryId,
+      brand,
+      model,
+      sku,
+      highlights,
+      whatsInTheBox,
+      warrantyType,
+      warrantyPeriod,
+      packageWeight,
+      packageDimensions,
+      videoUrl,
+      returnPolicy,
+      isFlashSale,
+      isFeatured,
+    } = body
 
     if (!name || !description || !price || !categoryId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -70,20 +91,56 @@ export async function POST(req: NextRequest) {
     const cat = await db.category.findUnique({ where: { id: categoryId } })
     if (!cat) return NextResponse.json({ error: 'Category not found' }, { status: 400 })
 
-    const product = await db.product.create({
-      data: {
-        name,
-        slug: slugify(name),
-        description,
-        price: parseFloat(price),
-        comparePrice: comparePrice ? parseFloat(comparePrice) : null,
-        images: JSON.stringify(images || []),
-        stock: parseInt(stock) || 0,
-        brand: brand || null,
-        categoryId,
-        retailerId: session.userId,
-      },
-    })
+    const data: any = {
+      name,
+      slug: slugify(name),
+      description,
+      price: parseFloat(price),
+      comparePrice: comparePrice ? parseFloat(comparePrice) : null,
+      images: JSON.stringify(images || []),
+      stock: parseInt(stock) || 0,
+      brand: brand || null,
+      model: model || null,
+      sku: sku || null,
+      highlights: highlights || null,
+      whatsInTheBox: whatsInTheBox || null,
+      warrantyType: warrantyType || null,
+      warrantyPeriod: warrantyPeriod || null,
+      packageWeight: packageWeight ? parseFloat(packageWeight) : null,
+      packageDimensions: packageDimensions || null,
+      videoUrl: videoUrl || null,
+      isFlashSale: !!isFlashSale,
+      isFeatured: !!isFeatured,
+      categoryId,
+      retailerId: session.userId,
+    }
+    if (returnPolicy !== undefined) {
+      data.returnPolicy = returnPolicy || null
+    }
+
+    let product: any
+    try {
+      product = await db.product.create({ data })
+    } catch (createErr: any) {
+      if (createErr.message?.includes('returnPolicy') || createErr.message?.includes('Unknown argument')) {
+        delete data.returnPolicy
+        product = await db.product.create({ data })
+        if (returnPolicy) {
+          try {
+            await db.$executeRawUnsafe(
+              `UPDATE "Product" SET "returnPolicy" = $1 WHERE id = $2`,
+              returnPolicy,
+              product.id
+            )
+            product.returnPolicy = returnPolicy
+          } catch {
+            // ignore fallback error
+          }
+        }
+      } else {
+        throw createErr
+      }
+    }
 
     return NextResponse.json({ product })
   } catch (e) {

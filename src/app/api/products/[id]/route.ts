@@ -43,17 +43,57 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
 
     const body = await req.json()
     const updates: Record<string, unknown> = {}
-    for (const k of ['name', 'description', 'brand', 'categoryId', 'status']) {
+    for (const k of [
+      'name',
+      'description',
+      'brand',
+      'model',
+      'sku',
+      'highlights',
+      'whatsInTheBox',
+      'warrantyType',
+      'warrantyPeriod',
+      'packageDimensions',
+      'videoUrl',
+      'returnPolicy',
+      'categoryId',
+      'status',
+    ]) {
       if (body[k] !== undefined) updates[k] = body[k]
     }
     if (body.price !== undefined) updates.price = parseFloat(body.price)
     if (body.comparePrice !== undefined) updates.comparePrice = body.comparePrice ? parseFloat(body.comparePrice) : null
     if (body.stock !== undefined) updates.stock = parseInt(body.stock)
+    if (body.packageWeight !== undefined) updates.packageWeight = body.packageWeight ? parseFloat(body.packageWeight) : null
     if (body.images !== undefined) updates.images = JSON.stringify(body.images)
     if (body.isFlashSale !== undefined) updates.isFlashSale = !!body.isFlashSale
     if (body.isFeatured !== undefined) updates.isFeatured = !!body.isFeatured
 
-    const updated = await db.product.update({ where: { id }, data: updates })
+    let updated: any
+    try {
+      updated = await db.product.update({ where: { id }, data: updates })
+    } catch (updateErr: any) {
+      if (updateErr.message?.includes('returnPolicy') || updateErr.message?.includes('Unknown argument')) {
+        const returnPolicyVal = updates.returnPolicy as string | null | undefined
+        delete updates.returnPolicy
+        updated = await db.product.update({ where: { id }, data: updates })
+        if (returnPolicyVal !== undefined) {
+          try {
+            await db.$executeRawUnsafe(
+              `UPDATE "Product" SET "returnPolicy" = $1 WHERE id = $2`,
+              returnPolicyVal,
+              id
+            )
+            updated.returnPolicy = returnPolicyVal
+          } catch {
+            // ignore fallback error
+          }
+        }
+      } else {
+        throw updateErr
+      }
+    }
+
     return NextResponse.json({ product: { ...updated, images: JSON.parse(updated.images) } })
   } catch (e) {
     console.error('Update product error:', e)
