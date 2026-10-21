@@ -1,5 +1,5 @@
 # ধাপ ১: ডিপেন্ডেন্সি ইনস্টল করার জন্য বেস ইমেজ
-FROM node:18-alpine AS deps
+FROM node:22-alpine AS deps
 WORKDIR /app
 
 # package.json এবং package-lock.json কপি করা
