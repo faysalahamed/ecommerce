@@ -566,3 +566,87 @@ Stage Summary:
 
 
 
+
+---
+Task ID: 15
+Agent: Antigravity
+Task: Make Brand links functional with brand filtering navigation, make right sidebar delivery options dynamic with editable location modal, and make return & warranty dynamic with SiteConfig integration
+
+Work Log:
+- Updated `src/lib/store.ts` to add `{ name: 'brand'; brand: string }` to the `View` type union
+- Handled brand view in `src/app/page.tsx` rendering `<ProductListView />`
+- Updated `src/components/views/product-list-view.tsx` to handle `view.name === 'brand'`, set `?brand=` API query parameter, and dynamically display `Brand: {brand}` in titles and breadcrumbs
+- Updated `GET /api/products` in `src/app/api/products/route.ts` to filter by `brand` using case-insensitive equality
+- Updated `GET /api/config` in `src/app/api/config/route.ts` to fetch and return `delivery_config` from the `SiteConfig` table
+- Added interactive Brand click navigation in `src/components/views/product-detail-view.tsx` for both `Brand: {brand}` and `More from {brand}`
+- Replaced hardcoded Delivery Options and Return & Warranty values in `src/components/views/product-detail-view.tsx`:
+  - Address dynamically reads from user profile, saved preference (`localStorage`), or configured default
+  - Clicking "CHANGE" opens a modal dialog allowing users to enter custom addresses or select popular hubs
+  - Standard Delivery title, estimated delivery duration, and flat delivery fee read dynamically from `SiteConfig`
+  - Cash on Delivery badge reflects site configuration status
+  - Return Policy uses per-product `returnPolicy` (falling back to SiteConfig default)
+  - Change of Mind dynamically checks policy applicability
+  - Product Warranty displays actual product `warrantyType` and `warrantyPeriod`
+  - 100% Authentic Product badge uses configurable authenticity guarantee text
+  - `ⓘ` info buttons next to Delivery Options and Return & Warranty open explanatory dialogs with comprehensive policies
+- Extended Site Config tab in Admin Dashboard (`src/components/views/dashboard-view.tsx`) with a Delivery, Return & Warranty configuration card allowing admins to customize default hub, fee, duration, COD, and policy defaults
+- Ran verification:
+  - `bun x tsc --noEmit`: 0 errors
+  - `bun run build`: 24/24 routes generated successfully
+
+---
+Task ID: 16
+Agent: Antigravity
+Task: Implement left sidebar menu in Admin Dashboard with dedicated setup pages for each configuration and dynamic Hero Slider management
+
+Work Log:
+- Replaced horizontal tab layout in `src/components/views/dashboard-view.tsx` with a responsive Left Sidebar Menu navigation system
+- Structured dedicated setup pages:
+  - `Overview`: Key metrics, total revenue, orders, products, users, quick-setup cards, recent orders snapshot
+  - `Products`: Product inventory, stock management, status badges, edit & delete actions, and Add Product modal
+  - `Orders`: Orders management, payment & shipment status updates, customer details
+  - `User Accounts`: User list, phone verification status, role management (Customer, Retailer, Admin)
+  - `Home Sliders Setup`: Dedicated page to manage homepage hero carousel slides (add, edit, delete, reorder up/down, toggle active, live preview, gradient presets, custom background image upload via `/api/upload`)
+  - `Promotional Banner Setup`: Dedicated page to configure the promotional ribbon on product detail pages (active switch, title, tag, live preview, save/delete)
+  - `Delivery & Shipping Setup`: Dedicated page for default hub address, standard fee (৳), guaranteed delivery duration, COD toggle, default return policy, authenticity guarantee text
+- Extended `GET /api/config` in `src/app/api/config/route.ts` to return `hero_slides` from `SiteConfig` table with fallback to `HERO_SLIDES`
+- Updated `src/components/ecommerce/hero-slider.tsx` to dynamically fetch and render slides from `/api/config`
+- Added `tag` and `active` fields to `HeroSlide` interface in `src/lib/brand.ts`
+- Verified:
+  - `bun x tsc --noEmit`: 0 errors
+  - `bun run build`: 24/24 routes generated successfully
+
+---
+Task ID: 17
+Agent: Antigravity
+Task: Implement 100,000-product scalability suite (PostgreSQL database indexes, server-side pagination with count, infinite scroll lazy loading, and paginated dashboard table)
+
+Work Log:
+- Added 8 composite indexes to `Product` model in `prisma/schema.prisma`:
+  - `@@index([status, categoryId])`
+  - `@@index([status, brand])`
+  - `@@index([status, createdAt])`
+  - `@@index([retailerId])`
+  - `@@index([status, isFlashSale])`
+  - `@@index([status, isFeatured])`
+  - `@@index([status, price])`
+  - `@@index([status, soldCount])`
+- Applied database schema sync using `prisma db push` and regenerated client with `prisma generate`
+- Updated `GET /api/products` in `src/app/api/products/route.ts`:
+  - Implemented `page`, `limit` (max 100), and `skip = (page - 1) * limit`
+  - Added parallel `db.product.count({ where })` to calculate accurate total product count
+  - Returns `{ products, total, page, limit, totalPages, hasMore, pagination }`
+  - Supports status filtering (`ACTIVE`, `INACTIVE`, `ALL`)
+- Rebuilt `ProductListView` in `src/components/views/product-list-view.tsx`:
+  - Implemented batch lazy loading (24 products per batch)
+  - Added automatic infinite scroll trigger with `IntersectionObserver` sentinel (pre-fetching 400px before page bottom)
+  - Added skeleton loaders for initial load and subsequent batch lazy loads
+  - Added manual "Load More Products" button with loading spinner
+  - Added visual progress indicator (e.g. "Showing 48 of 1,240 products • 4% viewed" with progress bar)
+- Enhanced Admin & Seller Products table in `src/components/views/dashboard-view.tsx`:
+  - Added server-side real-time search input for product name/brand
+  - Added product status filter dropdown (`All Status`, `Active`, `Inactive`)
+  - Added pagination controls (Previous, Next, Page X of Y) and total count indicator
+- Verified:
+  - `bun x tsc --noEmit`: 0 errors
+  - `bun run build`: 24/24 routes compiled cleanly

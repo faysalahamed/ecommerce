@@ -6,27 +6,41 @@ function slugify(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now().toString(36).slice(-4)
 }
 
-// GET /api/products — list with filters
+// GET /api/products — list with filters and server-side pagination
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const categoryId = searchParams.get('categoryId') || undefined
+  const brand = searchParams.get('brand') || undefined
   const search = searchParams.get('search') || undefined
   const retailerId = searchParams.get('retailerId') || undefined
   const flash = searchParams.get('flash') === 'true'
   const featured = searchParams.get('featured') === 'true'
   const sort = searchParams.get('sort') || 'latest'
-  const limit = parseInt(searchParams.get('limit') || '50')
+  const statusParam = searchParams.get('status') || undefined
 
-  const where: any = { status: 'ACTIVE' }
+  // Pagination parameters (scalable for 100k+ products)
+  const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50')))
+  const skip = (page - 1) * limit
+
+  const where: any = {}
+  if (statusParam && statusParam !== 'ALL') {
+    where.status = statusParam
+  } else if (!statusParam) {
+    where.status = 'ACTIVE'
+  }
   if (categoryId) where.categoryId = categoryId
   if (retailerId) where.retailerId = retailerId
   if (flash) where.isFlashSale = true
   if (featured) where.isFeatured = true
+  if (brand) {
+    where.brand = { equals: brand, mode: 'insensitive' }
+  }
   if (search) {
     where.OR = [
-      { name: { contains: search } },
-      { description: { contains: search } },
-      { brand: { contains: search } },
+      { name: { contains: search, mode: 'insensitive' } },
+      { description: { contains: search, mode: 'insensitive' } },
+      { brand: { contains: search, mode: 'insensitive' } },
     ]
   }
 
@@ -36,19 +50,39 @@ export async function GET(req: NextRequest) {
   if (sort === 'popular') orderBy.soldCount = 'desc'
   if (sort === 'rating') orderBy.rating = 'desc'
 
-  const products = await db.product.findMany({
-    where,
-    orderBy,
-    take: limit,
-    include: { category: true, retailer: { select: { name: true, storeName: true } } },
-  })
+  const [total, products] = await Promise.all([
+    db.product.count({ where }),
+    db.product.findMany({
+      where,
+      orderBy,
+      take: limit,
+      skip,
+      include: { category: true, retailer: { select: { name: true, storeName: true } } },
+    }),
+  ])
 
   const parsed = products.map((p) => ({
     ...p,
     images: JSON.parse(p.images) as string[],
   }))
 
-  return NextResponse.json({ products: parsed })
+  const totalPages = Math.ceil(total / limit)
+
+  return NextResponse.json({
+    products: parsed,
+    total,
+    page,
+    limit,
+    totalPages,
+    hasMore: page < totalPages,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages,
+      hasMore: page < totalPages,
+    },
+  })
 }
 
 // POST /api/products — create (RETAILER or ADMIN)

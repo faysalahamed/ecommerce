@@ -65,6 +65,8 @@ export interface HeroSlide {
   ctaSearchQuery?: string
   gradient: string  // tailwind gradient classes, e.g., 'from-sky-500 to-cyan-500'
   image?: string    // optional image URL; if present, used as background image
+  tag?: string      // optional badge/tag e.g. '🎁 Mega Bonanza'
+  active?: boolean  // whether slide is active in slider
 }
 
 export const HERO_SLIDES: HeroSlide[] = [

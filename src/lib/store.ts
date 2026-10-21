@@ -4,6 +4,7 @@ export type View =
   | { name: 'home' }
   | { name: 'product'; productId: string }
   | { name: 'category'; categoryId: string; categoryName?: string }
+  | { name: 'brand'; brand: string }
   | { name: 'search'; query: string }
   | { name: 'cart' }
   | { name: 'checkout' }

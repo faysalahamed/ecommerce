@@ -100,6 +100,15 @@ model Product {
   wishlist          Wishlist[]
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
+
+  @@index([status, categoryId])
+  @@index([status, brand])
+  @@index([status, createdAt])
+  @@index([retailerId])
+  @@index([status, isFlashSale])
+  @@index([status, isFeatured])
+  @@index([status, price])
+  @@index([status, soldCount])
 }
 
 model CartItem {

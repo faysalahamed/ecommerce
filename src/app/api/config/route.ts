@@ -2,27 +2,51 @@ import { NextRequest, NextResponse } from 'next/server'
 import { isOtpEnabled } from '@/lib/config'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
+import { HERO_SLIDES } from '@/lib/brand'
 
 // GET /api/config
-// Returns public site configuration flags and banners
+// Returns public site configuration flags, banners, delivery settings, and hero slider slides
 export async function GET() {
   let promoBanner: { title: string; tag?: string } | null = null
+  let deliveryConfig: any = null
+  let heroSlides: any = null
 
   try {
     const rows: any = await db.$queryRawUnsafe(
-      `SELECT value FROM "SiteConfig" WHERE key = 'promo_banner' LIMIT 1`
+      `SELECT key, value FROM "SiteConfig" WHERE key IN ('promo_banner', 'delivery_config', 'hero_slides')`
     )
-    if (rows && rows.length > 0 && rows[0]?.value) {
-      try {
-        const parsed = JSON.parse(rows[0].value)
-        if (parsed && parsed.enabled) {
-          promoBanner = {
-            title: parsed.title,
-            tag: parsed.tag || 'LIMITED TIME OFFER',
+    if (rows && rows.length > 0) {
+      for (const row of rows) {
+        if (row.key === 'promo_banner' && row.value) {
+          try {
+            const parsed = JSON.parse(row.value)
+            if (parsed && parsed.enabled) {
+              promoBanner = {
+                title: parsed.title,
+                tag: parsed.tag || 'LIMITED TIME OFFER',
+              }
+            }
+          } catch {
+            promoBanner = { title: row.value, tag: 'LIMITED TIME OFFER' }
           }
         }
-      } catch {
-        promoBanner = { title: rows[0].value, tag: 'LIMITED TIME OFFER' }
+        if (row.key === 'delivery_config' && row.value) {
+          try {
+            deliveryConfig = JSON.parse(row.value)
+          } catch {
+            // fallback
+          }
+        }
+        if (row.key === 'hero_slides' && row.value) {
+          try {
+            const parsed = JSON.parse(row.value)
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              heroSlides = parsed
+            }
+          } catch {
+            // fallback
+          }
+        }
       }
     }
   } catch {
@@ -32,6 +56,8 @@ export async function GET() {
   return NextResponse.json({
     otpEnabled: isOtpEnabled(),
     promoBanner,
+    deliveryConfig,
+    heroSlides: heroSlides || HERO_SLIDES,
   })
 }
 

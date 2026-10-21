@@ -137,6 +137,7 @@ export default function Home() {
         {view.name === 'home' && <HomeView categories={categories} />}
         {view.name === 'product' && <ProductDetailView />}
         {view.name === 'category' && <ProductListView />}
+        {view.name === 'brand' && <ProductListView />}
         {view.name === 'search' && <ProductListView />}
         {view.name === 'cart' && <CartView />}
         {view.name === 'checkout' && <CheckoutView />}

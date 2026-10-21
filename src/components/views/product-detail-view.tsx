@@ -5,7 +5,9 @@ import { useStore } from '@/lib/store'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { ProductCard, type ProductFE } from '@/components/ecommerce/product-card'
 import {
   ChevronLeft,
@@ -18,6 +20,7 @@ import {
   Plus,
   Truck,
   Shield,
+  ShieldCheck,
   RotateCcw,
   MapPin,
   MessageSquare,
@@ -26,6 +29,7 @@ import {
   ThumbsUp,
   Tag,
   Zap,
+  Info,
 } from 'lucide-react'
 import { formatBDT, discountPercent } from '@/lib/format'
 import { toast } from 'sonner'
@@ -62,6 +66,22 @@ export function ProductDetailView() {
   const [reviewComment, setReviewComment] = useState('')
   const [submittingReview, setSubmittingReview] = useState(false)
   const [promoBanner, setPromoBanner] = useState<{ title: string; tag?: string } | null>(null)
+  const [deliveryConfig, setDeliveryConfig] = useState<{
+    defaultAddress?: string
+    standardFee?: number
+    estimatedDays?: string
+    codAvailable?: boolean
+    returnPolicyDefault?: string
+    changeOfMindApplicable?: boolean
+    authenticProductText?: string
+  } | null>(null)
+
+  // Delivery destination and modals
+  const [deliveryLocation, setDeliveryLocation] = useState<string>('')
+  const [locationModalOpen, setLocationModalOpen] = useState(false)
+  const [editAddressInput, setEditAddressInput] = useState('')
+  const [deliveryInfoModalOpen, setDeliveryInfoModalOpen] = useState(false)
+  const [returnInfoModalOpen, setReturnInfoModalOpen] = useState(false)
 
   useEffect(() => {
     fetch('/api/config')
@@ -69,9 +89,16 @@ export function ProductDetailView() {
       .then((d) => {
         if (d?.promoBanner) setPromoBanner(d.promoBanner)
         else setPromoBanner(null)
+        if (d?.deliveryConfig) setDeliveryConfig(d.deliveryConfig)
       })
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('user_delivery_location') : null
+    const initial = user?.address || saved || deliveryConfig?.defaultAddress || 'Dhaka, Dhaka North, Banani Road No. 12 - 19'
+    setDeliveryLocation(initial)
+  }, [user, deliveryConfig])
 
   useEffect(() => {
     if (!productId) return
@@ -217,6 +244,28 @@ export function ProductDetailView() {
     } finally {
       setSubmittingReview(false)
     }
+  }
+
+  const handleBrandClick = () => {
+    if (product?.brand && product.brand.trim() && product.brand.trim().toLowerCase() !== 'no brand') {
+      navigate({ name: 'brand', brand: product.brand.trim() })
+    } else {
+      toast.info('No brand assigned to this product')
+    }
+  }
+
+  const handleSaveLocation = () => {
+    if (!editAddressInput.trim()) {
+      toast.error('Please enter a delivery destination')
+      return
+    }
+    const loc = editAddressInput.trim()
+    setDeliveryLocation(loc)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('user_delivery_location', loc)
+    }
+    setLocationModalOpen(false)
+    toast.success('Delivery location updated')
   }
 
   // Calculate review distribution
@@ -446,15 +495,23 @@ export function ProductDetailView() {
               </div>
             </div>
 
-            <div className="text-xs text-gray-500 mt-1">
-              Brand:{' '}
-              <span className="text-sky-600 font-medium hover:underline cursor-pointer">
+            <div className="text-xs text-gray-500 mt-1 flex items-center flex-wrap gap-1">
+              <span>Brand:</span>{' '}
+              <button
+                type="button"
+                onClick={handleBrandClick}
+                className="text-sky-600 font-medium hover:underline cursor-pointer"
+              >
                 {product.brand || 'No Brand'}
-              </span>
-              <span className="mx-2 text-gray-300">|</span>
-              <span className="text-gray-500 hover:text-sky-600 cursor-pointer">
+              </button>
+              <span className="mx-1 text-gray-300">|</span>
+              <button
+                type="button"
+                onClick={handleBrandClick}
+                className="text-gray-500 hover:text-sky-600 cursor-pointer"
+              >
                 More from {product.brand || 'No Brand'}
-              </span>
+              </button>
             </div>
           </div>
 
@@ -540,18 +597,31 @@ export function ProductDetailView() {
           <div className="space-y-3">
             <div className="flex items-center justify-between text-xs text-gray-500 font-semibold uppercase tracking-wider">
               <span>Delivery Options</span>
-              <span className="text-gray-400 cursor-pointer">ⓘ</span>
+              <button
+                type="button"
+                onClick={() => setDeliveryInfoModalOpen(true)}
+                className="text-gray-400 hover:text-sky-600 cursor-pointer p-0.5"
+                title="Delivery details"
+              >
+                ⓘ
+              </button>
             </div>
 
             <div className="bg-gray-50/80 p-2.5 rounded-lg border border-gray-100 text-xs space-y-2">
               <div className="flex items-start justify-between gap-1">
-                <div className="flex items-start gap-1.5 text-gray-700">
+                <div className="flex items-start gap-1.5 text-gray-700 min-w-0">
                   <MapPin className="h-3.5 w-3.5 text-sky-600 shrink-0 mt-0.5" />
-                  <span>Dhaka, Dhaka North, Banani Road No. 12 - 19</span>
+                  <span className="line-clamp-2">
+                    {deliveryLocation || deliveryConfig?.defaultAddress || 'Dhaka, Dhaka North, Banani Road No. 12 - 19'}
+                  </span>
                 </div>
                 <button
-                  onClick={() => toast.info('Delivery location change modal')}
-                  className="text-sky-600 font-bold hover:underline shrink-0 text-[11px]"
+                  type="button"
+                  onClick={() => {
+                    setEditAddressInput(deliveryLocation || deliveryConfig?.defaultAddress || 'Dhaka, Dhaka North, Banani Road No. 12 - 19')
+                    setLocationModalOpen(true)
+                  }}
+                  className="text-sky-600 font-bold hover:underline shrink-0 text-[11px] ml-2"
                 >
                   CHANGE
                 </button>
@@ -562,15 +632,21 @@ export function ProductDetailView() {
                   <Truck className="h-3.5 w-3.5 text-gray-500 shrink-0 mt-0.5" />
                   <div>
                     <div className="font-semibold text-gray-800">Standard Delivery</div>
-                    <div className="text-[11px] text-gray-500">Guaranteed within 2-3 days</div>
+                    <div className="text-[11px] text-gray-500">
+                      {deliveryConfig?.estimatedDays || 'Guaranteed within 2-3 days'}
+                    </div>
                   </div>
                 </div>
-                <span className="font-bold text-gray-900">৳ 90</span>
+                <span className="font-bold text-gray-900">
+                  ৳ {deliveryConfig?.standardFee !== undefined ? deliveryConfig.standardFee : 90}
+                </span>
               </div>
 
               <div className="border-t border-gray-200/60 pt-2 flex items-center gap-1.5 text-gray-700">
-                <Shield className="h-3.5 w-3.5 text-green-600 shrink-0" />
-                <span className="text-[11px] font-medium">Cash on Delivery Available</span>
+                <Shield className={`h-3.5 w-3.5 ${deliveryConfig?.codAvailable === false ? 'text-gray-400' : 'text-green-600'} shrink-0`} />
+                <span className="text-[11px] font-medium">
+                  {deliveryConfig?.codAvailable === false ? 'Cash on Delivery Unavailable' : 'Cash on Delivery Available'}
+                </span>
               </div>
             </div>
           </div>
@@ -578,22 +654,41 @@ export function ProductDetailView() {
           {/* Return & Warranty */}
           <div className="space-y-2 pt-2 border-t border-gray-100">
             <div className="flex items-center justify-between text-xs text-gray-500 font-semibold uppercase tracking-wider">
-              <span>Return & Warranty</span>
-              <span className="text-gray-400 cursor-pointer">ⓘ</span>
+              <span>Return &amp; Warranty</span>
+              <button
+                type="button"
+                onClick={() => setReturnInfoModalOpen(true)}
+                className="text-gray-400 hover:text-sky-600 cursor-pointer p-0.5"
+                title="Return &amp; Warranty details"
+              >
+                ⓘ
+              </button>
             </div>
 
             <div className="text-xs space-y-2 text-gray-600">
               <div className="flex items-center gap-2">
                 <RotateCcw className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                <span>{product.returnPolicy || '14 days easy return'}</span>
+                <span>{product.returnPolicy || deliveryConfig?.returnPolicyDefault || '14 days easy return'}</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                <span>Change of Mind applicable</span>
+                <span>
+                  {product.returnPolicy?.toLowerCase().includes('no return') || deliveryConfig?.changeOfMindApplicable === false
+                    ? 'Change of mind is not applicable'
+                    : 'Change of Mind applicable'}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <Shield className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                <span>100% Authentic Product</span>
+                <span>
+                  {product.warrantyType && product.warrantyType !== 'No Warranty'
+                    ? `${product.warrantyPeriod ? `${product.warrantyPeriod} ` : ''}${product.warrantyType}`
+                    : (product.warrantyType === 'No Warranty' ? 'Warranty not available' : (product.brand ? `${product.brand} Brand Warranty` : 'Standard Warranty Available'))}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-3.5 w-3.5 text-sky-600 shrink-0" />
+                <span>{deliveryConfig?.authenticProductText || '100% Authentic Product'}</span>
               </div>
             </div>
           </div>
@@ -1025,6 +1120,195 @@ export function ProductDetailView() {
               className="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold"
             >
               {submittingReview ? 'Submitting...' : 'Submit Review'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Delivery Location Modal */}
+      <Dialog open={locationModalOpen} onOpenChange={setLocationModalOpen}>
+        <DialogContent className="sm:max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-sky-600" /> Change Delivery Destination
+            </DialogTitle>
+            <DialogDescription className="text-xs text-gray-500">
+              Select or type your delivery address to see updated delivery fees and turnaround times.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div>
+              <Label className="text-xs font-semibold text-gray-700 block mb-1">
+                Delivery Address / Hub
+              </Label>
+              <Input
+                value={editAddressInput}
+                onChange={(e) => setEditAddressInput(e.target.value)}
+                placeholder="e.g. Dhaka, Banani Road No. 12"
+                className="text-xs h-9"
+              />
+            </div>
+
+            <div>
+              <span className="text-[11px] font-semibold text-gray-500 block mb-1.5 uppercase tracking-wider">
+                Quick Select Popular Locations
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  'Dhaka, Banani Road No. 12 - 19',
+                  'Dhaka, Gulshan 2',
+                  'Dhaka, Dhanmondi 27',
+                  'Dhaka, Uttara Sector 3',
+                  'Dhaka, Mirpur 10',
+                  'Chittagong, GEC Circle',
+                  'Sylhet, Zindabazar',
+                  'Rajshahi, Shaheb Bazar',
+                  'Khulna, Shib Bari',
+                ].map((loc) => (
+                  <button
+                    key={loc}
+                    type="button"
+                    onClick={() => setEditAddressInput(loc)}
+                    className="text-[11px] px-2.5 py-1 bg-gray-100 hover:bg-sky-50 hover:text-sky-700 rounded-full text-gray-700 transition border border-gray-200"
+                  >
+                    {loc}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLocationModalOpen(false)}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSaveLocation}
+              className="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold"
+            >
+              Update Location
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delivery Information Modal */}
+      <Dialog open={deliveryInfoModalOpen} onOpenChange={setDeliveryInfoModalOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
+              <Truck className="h-4 w-4 text-sky-600" /> Delivery Options &amp; Coverage
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3.5 py-2 text-xs text-gray-600">
+            <div className="bg-sky-50/70 p-3 rounded-lg border border-sky-100 space-y-1">
+              <div className="font-semibold text-sky-900 flex items-center gap-1.5">
+                <Truck className="h-3.5 w-3.5 text-sky-600" /> Standard Delivery
+              </div>
+              <p className="text-gray-600">
+                Guaranteed delivery duration: {deliveryConfig?.estimatedDays || '2-3 business days'}. Standard delivery charge is ৳ {deliveryConfig?.standardFee !== undefined ? deliveryConfig.standardFee : 90}.
+              </p>
+            </div>
+
+            <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 space-y-1">
+              <div className="font-semibold text-gray-900 flex items-center gap-1.5">
+                <Shield className="h-3.5 w-3.5 text-green-600" /> Cash on Delivery (COD)
+              </div>
+              <p className="text-gray-600">
+                {deliveryConfig?.codAvailable === false
+                  ? 'Cash on delivery is currently suspended for this area or item.'
+                  : 'Cash on delivery is fully supported. Pay upon physical delivery of your order at your doorstep.'}
+              </p>
+            </div>
+
+            <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 space-y-1">
+              <div className="font-semibold text-gray-900 flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5 text-sky-600" /> Destination &amp; Tracking
+              </div>
+              <p className="text-gray-600">
+                Real-time courier tracking updates will be provided via SMS and accessible inside your customer dashboard once dispatched.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              size="sm"
+              onClick={() => setDeliveryInfoModalOpen(false)}
+              className="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Return & Warranty Information Modal */}
+      <Dialog open={returnInfoModalOpen} onOpenChange={setReturnInfoModalOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-sky-600" /> Return &amp; Warranty Policy
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3.5 py-2 text-xs text-gray-600">
+            <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 space-y-1">
+              <div className="font-semibold text-gray-900 flex items-center gap-1.5">
+                <RotateCcw className="h-3.5 w-3.5 text-sky-600" /> Return Policy
+              </div>
+              <p className="text-gray-600">
+                {product?.returnPolicy || deliveryConfig?.returnPolicyDefault || '14 days easy return'}. Products can be returned within the specified period if defective, damaged, or significantly not as described.
+              </p>
+            </div>
+
+            <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 space-y-1">
+              <div className="font-semibold text-gray-900 flex items-center gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-600" /> Change of Mind
+              </div>
+              <p className="text-gray-600">
+                {product?.returnPolicy?.toLowerCase().includes('no return') || deliveryConfig?.changeOfMindApplicable === false
+                  ? 'Change of mind is not applicable for this item.'
+                  : 'Change of mind is applicable provided the package and product remain completely unopened, undamaged, and with all original seals intact.'}
+              </p>
+            </div>
+
+            <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 space-y-1">
+              <div className="font-semibold text-gray-900 flex items-center gap-1.5">
+                <Shield className="h-3.5 w-3.5 text-sky-600" /> Warranty Coverage
+              </div>
+              <p className="text-gray-600">
+                {product?.warrantyType && product.warrantyType !== 'No Warranty'
+                  ? `${product.warrantyPeriod ? `${product.warrantyPeriod} ` : ''}${product.warrantyType} covers manufacturing defects. Contact the verified seller or authorized service centers.`
+                  : 'No manufacturer warranty is included with this item unless specified on package.'}
+              </p>
+            </div>
+
+            <div className="bg-sky-50/70 p-3 rounded-lg border border-sky-100 space-y-1">
+              <div className="font-semibold text-sky-900 flex items-center gap-1.5">
+                <ShieldCheck className="h-3.5 w-3.5 text-sky-600" /> Authenticity Guarantee
+              </div>
+              <p className="text-gray-600">
+                {deliveryConfig?.authenticProductText || '100% Authentic Product'}. All products sold on our platform are verified by platform quality audits.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              size="sm"
+              onClick={() => setReturnInfoModalOpen(false)}
+              className="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold"
+            >
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
