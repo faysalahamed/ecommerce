@@ -25,7 +25,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # ধাপ ৩: প্রোডাকশনের জন্য রানটাইম ইমেজ
-FROM node:18-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
