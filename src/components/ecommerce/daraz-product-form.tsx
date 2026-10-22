@@ -12,6 +12,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import {
   Plus,
@@ -35,6 +37,7 @@ import {
   Bold,
   Italic,
   X,
+  Loader2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -59,6 +62,45 @@ export function DarazProductForm({
   // Section 1: Basic Information
   const [name, setName] = useState('')
   const [categoryId, setCategoryId] = useState('')
+  const [localCategories, setLocalCategories] = useState<{ id: string; name: string }[]>(categories)
+  const [quickCatOpen, setQuickCatOpen] = useState(false)
+  const [quickCatName, setQuickCatName] = useState('')
+  const [quickCatIcon, setQuickCatIcon] = useState('tag')
+  const [quickCatLoading, setQuickCatLoading] = useState(false)
+
+  useEffect(() => {
+    setLocalCategories(categories)
+  }, [categories])
+
+  const handleCreateQuickCategory = async () => {
+    if (!quickCatName.trim()) {
+      toast.error('Category name is required')
+      return
+    }
+    setQuickCatLoading(true)
+    try {
+      const res = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: quickCatName.trim(), icon: quickCatIcon }),
+      })
+      const data = await res.json()
+      if (res.ok && data.category) {
+        toast.success(`Category "${data.category.name}" created!`)
+        setLocalCategories((prev) => [...prev, { id: data.category.id, name: data.category.name }])
+        setCategoryId(data.category.id)
+        setQuickCatName('')
+        setQuickCatOpen(false)
+        onSuccess?.()
+      } else {
+        toast.error(data.error || 'Failed to create category')
+      }
+    } catch {
+      toast.error('Failed to create category')
+    } finally {
+      setQuickCatLoading(false)
+    }
+  }
   const [images, setImages] = useState<string[]>([])
   const [imageUrlInput, setImageUrlInput] = useState('')
   const [whiteBgImage, setWhiteBgImage] = useState('')
@@ -382,7 +424,8 @@ export function DarazProductForm({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-4xl max-h-[92vh] flex flex-col p-0 overflow-hidden bg-gray-50 border-gray-200">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shrink-0">
@@ -461,13 +504,22 @@ export function DarazProductForm({
 
             {/* Category */}
             <div className="space-y-1">
-              <Label className="text-xs font-semibold text-gray-800">* Category</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold text-gray-800">* Category</Label>
+                <button
+                  type="button"
+                  onClick={() => setQuickCatOpen(true)}
+                  className="text-[11px] text-sky-600 hover:text-sky-700 font-semibold hover:underline flex items-center gap-1"
+                >
+                  <Plus className="h-3 w-3" /> Add New Category
+                </button>
+              </div>
               <Select value={categoryId} onValueChange={setCategoryId}>
                 <SelectTrigger className="text-xs h-10 bg-white">
                   <SelectValue placeholder="Select Category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((c) => (
+                  {localCategories.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.name}
                     </SelectItem>
@@ -1205,5 +1257,86 @@ export function DarazProductForm({
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Quick Add Category Modal */}
+    <Dialog open={quickCatOpen} onOpenChange={setQuickCatOpen}>
+      <DialogContent className="max-w-md bg-white">
+        <DialogHeader>
+          <DialogTitle className="text-sm font-bold flex items-center gap-2">
+            <Plus className="h-4 w-4 text-sky-600" /> Add New Category
+          </DialogTitle>
+          <DialogDescription className="text-xs text-gray-500">
+            Create a new product category. It will instantly be selected for this product.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3 py-2">
+          <div className="space-y-1">
+            <Label className="text-xs font-semibold">Category Name *</Label>
+            <Input
+              placeholder="e.g. Smart Watches, Gaming Accessories"
+              value={quickCatName}
+              onChange={(e) => setQuickCatName(e.target.value)}
+              className="text-xs h-9"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  handleCreateQuickCategory()
+                }
+              }}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs font-semibold">Icon / Type</Label>
+            <Select value={quickCatIcon} onValueChange={setQuickCatIcon}>
+              <SelectTrigger className="text-xs h-9 bg-white">
+                <SelectValue placeholder="Select Icon" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="laptop">💻 Electronics / Tech</SelectItem>
+                <SelectItem value="smartphone">📱 Smartphones & Mobile</SelectItem>
+                <SelectItem value="shirt">👕 Fashion & Clothing</SelectItem>
+                <SelectItem value="sofa">🛋️ Home & Living</SelectItem>
+                <SelectItem value="heart">❤️ Beauty & Health</SelectItem>
+                <SelectItem value="dumbbell">🏋️ Sports & Fitness</SelectItem>
+                <SelectItem value="shopping-cart">🛒 Groceries & Daily</SelectItem>
+                <SelectItem value="book">📚 Books & Stationery</SelectItem>
+                <SelectItem value="tag">🏷️ General / Deals</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setQuickCatOpen(false)}
+            className="text-xs h-8"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            disabled={quickCatLoading || !quickCatName.trim()}
+            onClick={handleCreateQuickCategory}
+            className="bg-sky-600 hover:bg-sky-700 text-white text-xs h-8"
+          >
+            {quickCatLoading ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                Creating...
+              </>
+            ) : (
+              'Create Category'
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </>
   )
 }

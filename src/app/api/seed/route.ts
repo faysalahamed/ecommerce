@@ -1,9 +1,21 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { hashPassword } from '@/lib/auth'
 import { BRAND } from '@/lib/brand'
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+  // Protect the seed endpoint with a secret key.
+  // Set SEED_SECRET in your environment (any random string).
+  // Call with:  POST /api/seed  and header  x-seed-secret: <your-secret>
+  // If SEED_SECRET is not set, the endpoint is open (dev convenience).
+  const secret = process.env.SEED_SECRET
+  if (secret) {
+    const provided = req.headers.get('x-seed-secret') || ''
+    if (provided !== secret) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+  }
+
   try {
     // Cleanup existing data
     await db.review.deleteMany()
@@ -213,4 +225,21 @@ export async function POST() {
     console.error('Seed error:', e)
     return NextResponse.json({ error: 'Seed failed' }, { status: 500 })
   }
+}
+
+// GET /api/seed — returns current DB counts without modifying anything
+export async function GET(req: NextRequest) {
+  const secret = process.env.SEED_SECRET
+  if (secret) {
+    const provided = req.headers.get('x-seed-secret') || ''
+    if (provided !== secret) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+  }
+  const [users, categories, products] = await Promise.all([
+    db.user.count(),
+    db.category.count(),
+    db.product.count(),
+  ])
+  return NextResponse.json({ users, categories, products })
 }

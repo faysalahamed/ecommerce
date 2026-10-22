@@ -55,6 +55,10 @@ import {
   ShieldCheck,
   Shield,
   Layers,
+  Loader2,
+  Search,
+  FolderTree,
+  Tag,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatBDT } from '@/lib/format'
@@ -65,11 +69,37 @@ import { HERO_SLIDES, type HeroSlide } from '@/lib/brand'
 export type AdminMenuKey =
   | 'overview'
   | 'products'
+  | 'categories'
   | 'orders'
   | 'users'
   | 'sliders'
   | 'promo-banner'
   | 'delivery-setup'
+
+export const CATEGORY_ICON_PRESETS = [
+  { key: 'laptop', label: 'Electronics', emoji: '💻' },
+  { key: 'smartphone', label: 'Smartphones', emoji: '📱' },
+  { key: 'shirt', label: 'Fashion & Clothes', emoji: '👕' },
+  { key: 'sofa', label: 'Home & Living', emoji: '🛋️' },
+  { key: 'heart', label: 'Beauty & Health', emoji: '❤️' },
+  { key: 'dumbbell', label: 'Sports & Fitness', emoji: '🏋️' },
+  { key: 'shopping-cart', label: 'Groceries', emoji: '🛒' },
+  { key: 'book', label: 'Books & Stationery', emoji: '📚' },
+  { key: 'watch', label: 'Watches', emoji: '⌚' },
+  { key: 'gamepad', label: 'Gaming', emoji: '🎮' },
+  { key: 'baby', label: 'Baby & Kids', emoji: '🍼' },
+  { key: 'utensils', label: 'Kitchen & Dining', emoji: '🍳' },
+  { key: 'car', label: 'Motors & Auto', emoji: '🚗' },
+  { key: 'sparkles', label: 'Jewelry & Luxury', emoji: '💎' },
+  { key: 'tag', label: 'Deals / Other', emoji: '🏷️' },
+]
+
+export function getCategoryDisplayEmoji(icon: string | null | undefined): string {
+  if (!icon) return '🛍️'
+  const found = CATEGORY_ICON_PRESETS.find((p) => p.key === icon || p.emoji === icon)
+  if (found) return found.emoji
+  return icon
+}
 
 const GRADIENT_PRESETS = [
   { label: 'Sky & Cyan', value: 'from-sky-500 to-cyan-500' },
@@ -102,6 +132,21 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
   const [orders, setOrders] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Bulk-confirm state (admin pending orders grid)
+  const [selectedPendingIds, setSelectedPendingIds] = useState<Set<string>>(new Set())
+  const [bulkConfirming, setBulkConfirming] = useState(false)
+
+  // Category management state
+  const [categoryList, setCategoryList] = useState<any[]>(categories || [])
+  const [categorySearch, setCategorySearch] = useState('')
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false)
+  const [editingCategory, setEditingCategory] = useState<any | null>(null)
+  const [catFormName, setCatFormName] = useState('')
+  const [catFormParentId, setCatFormParentId] = useState('none')
+  const [catFormIcon, setCatFormIcon] = useState('tag')
+  const [catFormSaving, setCatFormSaving] = useState(false)
+  const [catDeleteLoading, setCatDeleteLoading] = useState<string | null>(null)
 
   // Product pagination & filtering state (scalable for 100k+ products)
   const [productPage, setProductPage] = useState(1)
@@ -430,12 +475,100 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
     }
   }
 
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/categories?flat=true')
+      if (res.ok) {
+        const data = await res.json()
+        setCategoryList(data.categories || [])
+      }
+    } catch (e) {
+      console.error('Failed to fetch categories:', e)
+    }
+  }
+
+  const handleOpenAddCategory = () => {
+    setEditingCategory(null)
+    setCatFormName('')
+    setCatFormParentId('none')
+    setCatFormIcon('tag')
+    setCategoryModalOpen(true)
+  }
+
+  const handleOpenEditCategory = (cat: any) => {
+    setEditingCategory(cat)
+    setCatFormName(cat.name)
+    setCatFormParentId(cat.parentId || 'none')
+    setCatFormIcon(cat.icon || 'tag')
+    setCategoryModalOpen(true)
+  }
+
+  const handleSaveCategory = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!catFormName.trim()) {
+      toast.error('Category name is required')
+      return
+    }
+    setCatFormSaving(true)
+    try {
+      const payload: any = {
+        name: catFormName.trim(),
+        parentId: catFormParentId === 'none' ? null : catFormParentId,
+        icon: catFormIcon.trim() || null,
+      }
+      if (editingCategory) {
+        payload.id = editingCategory.id
+      }
+      const res = await fetch('/api/categories', {
+        method: editingCategory ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success(editingCategory ? 'Category updated successfully' : 'Category created successfully')
+        setCategoryModalOpen(false)
+        await fetchCategories()
+      } else {
+        toast.error(data.error || 'Failed to save category')
+      }
+    } catch {
+      toast.error('Failed to save category')
+    } finally {
+      setCatFormSaving(false)
+    }
+  }
+
+  const handleDeleteCategory = async (cat: any) => {
+    if (!confirm(`Are you sure you want to delete category "${cat.name}"?`)) {
+      return
+    }
+    setCatDeleteLoading(cat.id)
+    try {
+      const res = await fetch(`/api/categories?id=${cat.id}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success(`Category "${cat.name}" deleted`)
+        await fetchCategories()
+      } else {
+        toast.error(data.error || 'Failed to delete category')
+      }
+    } catch {
+      toast.error('Failed to delete category')
+    } finally {
+      setCatDeleteLoading(null)
+    }
+  }
+
   // Fetch core entities
   const fetchAll = async () => {
     setLoading(true)
     try {
       // Products (scalable paginated query)
       const prodTotal = await fetchProductsPage(productPage, productSearch, productStatusFilter)
+
+      // Categories
+      await fetchCategories()
 
       // Orders
       const oRes = await fetch('/api/orders')
@@ -590,6 +723,30 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
                   }`}
                 >
                   {products.length}
+                </span>
+              </button>
+            )}
+
+            {user.role === 'ADMIN' && (
+              <button
+                type="button"
+                onClick={() => setActiveMenu('categories')}
+                className={`w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-lg transition text-left ${
+                  activeMenu === 'categories'
+                    ? 'bg-sky-600 text-white shadow-xs'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Layers className="h-4 w-4 shrink-0" />
+                  <span>Categories</span>
+                </div>
+                <span
+                  className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${
+                    activeMenu === 'categories' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+                  }`}
+                >
+                  {categoryList.length}
                 </span>
               </button>
             )}
@@ -1085,6 +1242,188 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
           )}
 
           {/* ========================================================= */}
+          {/* PAGE 2.5: CATEGORIES MANAGEMENT (ADMIN)                   */}
+          {/* ========================================================= */}
+          {activeMenu === 'categories' && user.role === 'ADMIN' && (() => {
+            const filteredCategories = categoryList.filter((c) =>
+              c.name.toLowerCase().includes(categorySearch.toLowerCase()) ||
+              c.slug?.toLowerCase().includes(categorySearch.toLowerCase())
+            )
+            const topLevelCount = categoryList.filter((c) => !c.parentId).length
+            const subCategoryCount = categoryList.filter((c) => !!c.parentId).length
+
+            return (
+              <Card className="p-5 bg-white border border-gray-200 shadow-xs space-y-5">
+                {/* Header */}
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-gray-100">
+                  <div>
+                    <h2 className="font-bold text-base text-gray-900 flex items-center gap-2">
+                      <Layers className="h-5 w-5 text-sky-600" /> Category Management
+                    </h2>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Create, organize and manage store categories and sub-categories
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleOpenAddCategory}
+                    className="bg-sky-600 hover:bg-sky-700 text-white text-xs h-8.5 px-3 font-semibold shadow-xs"
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1.5" /> Add New Category
+                  </Button>
+                </div>
+
+                {/* Quick stats pills */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="p-3 bg-sky-50 border border-sky-100 rounded-lg flex items-center justify-between">
+                    <div>
+                      <div className="text-[11px] font-semibold text-sky-700 uppercase tracking-wider">Total Categories</div>
+                      <div className="text-2xl font-black text-sky-900 mt-0.5">{categoryList.length}</div>
+                    </div>
+                    <Layers className="h-7 w-7 text-sky-400" />
+                  </div>
+                  <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center justify-between">
+                    <div>
+                      <div className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">Top-Level Categories</div>
+                      <div className="text-2xl font-black text-emerald-900 mt-0.5">{topLevelCount}</div>
+                    </div>
+                    <FolderTree className="h-7 w-7 text-emerald-400" />
+                  </div>
+                  <div className="p-3 bg-purple-50 border border-purple-100 rounded-lg flex items-center justify-between">
+                    <div>
+                      <div className="text-[11px] font-semibold text-purple-700 uppercase tracking-wider">Sub-Categories</div>
+                      <div className="text-2xl font-black text-purple-900 mt-0.5">{subCategoryCount}</div>
+                    </div>
+                    <Tag className="h-7 w-7 text-purple-400" />
+                  </div>
+                </div>
+
+                {/* Search & Filter Bar */}
+                <div className="flex items-center gap-3">
+                  <div className="relative flex-1 max-w-sm">
+                    <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-400" />
+                    <Input
+                      placeholder="Search categories..."
+                      value={categorySearch}
+                      onChange={(e) => setCategorySearch(e.target.value)}
+                      className="pl-8 text-xs h-8.5 bg-gray-50 border-gray-200"
+                    />
+                  </div>
+                  {categorySearch && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setCategorySearch('')}
+                      className="text-xs h-8 text-gray-500 hover:text-gray-800"
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+
+                {/* Categories Table */}
+                <div className="overflow-x-auto border border-gray-100 rounded-lg">
+                  <Table>
+                    <TableHeader className="bg-gray-50">
+                      <TableRow>
+                        <TableHead className="w-12 text-xs">Icon</TableHead>
+                        <TableHead className="text-xs">Category Name</TableHead>
+                        <TableHead className="text-xs">Slug</TableHead>
+                        <TableHead className="text-xs">Hierarchy</TableHead>
+                        <TableHead className="text-xs text-center">Products</TableHead>
+                        <TableHead className="text-xs text-center">Sub-Categories</TableHead>
+                        <TableHead className="text-xs text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredCategories.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8 text-gray-400 text-xs">
+                            {categorySearch ? 'No categories matched your search.' : 'No categories found. Click "Add New Category" above to create one.'}
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredCategories.map((c) => {
+                          const parentCat = c.parent || categoryList.find((p) => p.id === c.parentId)
+                          const prodCount = c._count?.products ?? 0
+                          const childCount = c._count?.children ?? (c.children?.length || 0)
+                          const isDeleting = catDeleteLoading === c.id
+
+                          return (
+                            <TableRow key={c.id} className="hover:bg-gray-50/70">
+                              <TableCell className="py-2.5">
+                                <span className="text-xl" title={c.icon || 'Category'}>
+                                  {getCategoryDisplayEmoji(c.icon)}
+                                </span>
+                              </TableCell>
+                              <TableCell className="py-2.5">
+                                <div className="font-bold text-xs text-gray-900">{c.name}</div>
+                              </TableCell>
+                              <TableCell className="py-2.5 font-mono text-[11px] text-gray-500">
+                                {c.slug}
+                              </TableCell>
+                              <TableCell className="py-2.5">
+                                {parentCat ? (
+                                  <Badge variant="outline" className="text-[10px] bg-purple-50 text-purple-700 border-purple-200">
+                                    Sub of {parentCat.name}
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-[10px] bg-sky-50 text-sky-700 border-sky-200">
+                                    Top-Level
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell className="py-2.5 text-center">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-100 text-gray-700">
+                                  {prodCount}
+                                </span>
+                              </TableCell>
+                              <TableCell className="py-2.5 text-center">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-100 text-gray-700">
+                                  {childCount}
+                                </span>
+                              </TableCell>
+                              <TableCell className="py-2.5 text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleOpenEditCategory(c)}
+                                    className="h-7 w-7 p-0 text-gray-600 hover:text-sky-600 hover:bg-sky-50"
+                                    title="Edit Category"
+                                  >
+                                    <Edit className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    disabled={isDeleting}
+                                    onClick={() => handleDeleteCategory(c)}
+                                    className="h-7 w-7 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                                    title="Delete Category"
+                                  >
+                                    {isDeleting ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    )}
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </Card>
+            )
+          })()}
+
+          {/* ========================================================= */}
           {/* PAGE 3: ORDERS MANAGEMENT                                 */}
           {/* ========================================================= */}
           {activeMenu === 'orders' && (
@@ -1097,6 +1436,139 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
                   <p className="text-xs text-gray-500">Track order processing, payments, and delivery fulfillment</p>
                 </div>
               </div>
+
+              {/* ── BULK CONFIRM PANEL (admin only) ── */}
+              {user.role === 'ADMIN' && !loading && (() => {
+                const pendingOrders = orders.filter((o) => o.status === 'PENDING')
+                if (pendingOrders.length === 0) return null
+
+                const allSelected = pendingOrders.every((o) => selectedPendingIds.has(o.id))
+                const someSelected = selectedPendingIds.size > 0
+
+                const toggleOne = (id: string) => {
+                  setSelectedPendingIds((prev) => {
+                    const next = new Set(prev)
+                    next.has(id) ? next.delete(id) : next.add(id)
+                    return next
+                  })
+                }
+                const toggleAll = () => {
+                  if (allSelected) {
+                    setSelectedPendingIds(new Set())
+                  } else {
+                    setSelectedPendingIds(new Set(pendingOrders.map((o) => o.id)))
+                  }
+                }
+                const bulkConfirm = async () => {
+                  if (selectedPendingIds.size === 0) return
+                  setBulkConfirming(true)
+                  try {
+                    await Promise.all(
+                      Array.from(selectedPendingIds).map((orderId) =>
+                        fetch('/api/orders', {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ orderId, status: 'CONFIRMED' }),
+                        })
+                      )
+                    )
+                    toast.success(`${selectedPendingIds.size} order(s) confirmed successfully`)
+                    setSelectedPendingIds(new Set())
+                    fetchAll()
+                  } catch {
+                    toast.error('Failed to confirm some orders')
+                  } finally {
+                    setBulkConfirming(false)
+                  }
+                }
+
+                return (
+                  <div className="rounded-xl border-2 border-amber-200 bg-amber-50 p-4 space-y-3">
+                    {/* Header */}
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                          {pendingOrders.length} Pending
+                        </span>
+                        <h3 className="font-bold text-sm text-amber-900">COD Orders Awaiting Confirmation</h3>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label className="flex items-center gap-1.5 text-xs text-amber-800 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={allSelected}
+                            onChange={toggleAll}
+                            className="accent-sky-600 w-4 h-4 rounded"
+                          />
+                          Select All
+                        </label>
+                        <Button
+                          size="sm"
+                          disabled={!someSelected || bulkConfirming}
+                          onClick={bulkConfirm}
+                          className="bg-sky-600 hover:bg-sky-700 text-white h-8 text-xs px-3 disabled:opacity-50"
+                        >
+                          {bulkConfirming ? (
+                            <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />Confirming...</>
+                          ) : (
+                            <><CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />Confirm {someSelected ? `(${selectedPendingIds.size})` : 'Selected'}</>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Pending orders grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                      {pendingOrders.map((o) => {
+                        const checked = selectedPendingIds.has(o.id)
+                        return (
+                          <label
+                            key={o.id}
+                            className={`flex gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                              checked
+                                ? 'border-sky-500 bg-white shadow-sm'
+                                : 'border-amber-200 bg-white/70 hover:border-amber-400'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleOne(o.id)}
+                              className="accent-sky-600 mt-0.5 w-4 h-4 shrink-0"
+                            />
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="font-mono text-xs font-bold text-gray-900 truncate">{o.orderNumber}</span>
+                                <span className="text-xs font-bold text-sky-700 shrink-0">{formatBDT(o.total)}</span>
+                              </div>
+                              <div className="text-[11px] text-gray-500 truncate">
+                                {o.recipientName} · {o.phone}
+                              </div>
+                              <div className="text-[10px] text-gray-400 truncate">{o.address}</div>
+                              <div className="text-[10px] text-gray-400">
+                                {new Date(o.createdAt).toLocaleString('en-GB', {
+                                  day: 'numeric', month: 'short', year: 'numeric',
+                                  hour: '2-digit', minute: '2-digit',
+                                })}
+                              </div>
+                              <div className="flex gap-1 flex-wrap pt-0.5">
+                                {o.items?.slice(0, 2).map((it: any) => (
+                                  <span key={it.id} className="text-[10px] bg-gray-100 rounded px-1.5 py-0.5 text-gray-600 truncate max-w-[120px]">
+                                    {it.name} ×{it.quantity}
+                                  </span>
+                                ))}
+                                {o.items?.length > 2 && (
+                                  <span className="text-[10px] text-gray-400">+{o.items.length - 2} more</span>
+                                )}
+                              </div>
+                            </div>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })()}
 
               {loading ? (
                 <p className="text-gray-500 text-xs py-8 text-center">Loading orders...</p>
@@ -1167,10 +1639,80 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
                         ))}
                       </div>
 
+                      {/* Order status stepper — shown to customers */}
+                      {user.role === 'CUSTOMER' && (() => {
+                        const steps = ['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED']
+                        const stepLabels: Record<string, string> = {
+                          PENDING: 'Pending',
+                          CONFIRMED: 'Confirmed',
+                          SHIPPED: 'Shipped',
+                          DELIVERED: 'Delivered',
+                        }
+                        const stepIcons: Record<string, string> = {
+                          PENDING: '🕐',
+                          CONFIRMED: '✅',
+                          SHIPPED: '🚚',
+                          DELIVERED: '📦',
+                        }
+                        const currentIdx = o.status === 'CANCELLED' ? -1 : steps.indexOf(o.status)
+                        return (
+                          <div className="border-t border-gray-100 pt-3">
+                            {o.status === 'CANCELLED' ? (
+                              <div className="flex items-center gap-2 text-red-600 text-xs font-semibold py-1">
+                                <span>❌</span>
+                                <span>Order Cancelled</span>
+                                {o.paymentStatus === 'PAID' && <span className="text-gray-500 font-normal ml-1">— Refund will be processed</span>}
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-0">
+                                {steps.map((step, idx) => {
+                                  const done = idx < currentIdx
+                                  const active = idx === currentIdx
+                                  const pending = idx > currentIdx
+                                  return (
+                                    <div key={step} className="flex items-center flex-1 min-w-0">
+                                      <div className="flex flex-col items-center min-w-0">
+                                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all ${
+                                          done ? 'bg-green-500 border-green-500 text-white' :
+                                          active ? 'bg-sky-600 border-sky-600 text-white ring-2 ring-sky-200' :
+                                          'bg-gray-100 border-gray-200 text-gray-400'
+                                        }`}>
+                                          {done ? '✓' : stepIcons[step]}
+                                        </div>
+                                        <span className={`text-[9px] mt-0.5 font-semibold whitespace-nowrap ${
+                                          active ? 'text-sky-600' : done ? 'text-green-600' : 'text-gray-400'
+                                        }`}>{stepLabels[step]}</span>
+                                      </div>
+                                      {idx < steps.length - 1 && (
+                                        <div className={`flex-1 h-0.5 mb-3 mx-0.5 ${done || active ? 'bg-sky-400' : 'bg-gray-200'}`} />
+                                      )}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )}
+                            {o.status === 'SHIPPED' && (
+                              <p className="text-[10px] text-sky-600 mt-1 font-medium">🚚 Your order is on its way! Estimated delivery: 2-3 business days</p>
+                            )}
+                            {o.status === 'PENDING' && o.paymentMethod === 'COD' && (
+                              <p className="text-[10px] text-amber-600 mt-1 font-medium">💵 Cash on Delivery — Pay when your order arrives</p>
+                            )}
+                          </div>
+                        )
+                      })()}
+
                       <div className="border-t border-gray-100 pt-2 flex justify-between font-bold text-xs sm:text-sm">
                         <span>Total Payable</span>
                         <span className="text-sky-600 font-extrabold">{formatBDT(o.total)}</span>
                       </div>
+
+                      {/* Shipping info for customers */}
+                      {user.role === 'CUSTOMER' && (
+                        <div className="text-[11px] text-gray-500 space-y-0.5 border-t border-gray-100 pt-2">
+                          <div><span className="font-semibold text-gray-700">Ship to:</span> {o.recipientName}, {o.phone}</div>
+                          <div><span className="font-semibold text-gray-700">Address:</span> {o.address}</div>
+                        </div>
+                      )}
 
                       {user.role === 'ADMIN' && (
                         <div className="border-t border-gray-100 pt-2 text-[11px] text-gray-500 space-y-0.5">
@@ -1882,12 +2424,167 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
         </DialogContent>
       </Dialog>
 
+      {/* Category Add/Edit Modal */}
+      <Dialog open={categoryModalOpen} onOpenChange={setCategoryModalOpen}>
+        <DialogContent className="max-w-md bg-white">
+          <form onSubmit={handleSaveCategory}>
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold flex items-center gap-2">
+                <Layers className="h-4 w-4 text-sky-600" />
+                {editingCategory ? 'Edit Category' : 'Add New Category'}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-gray-500">
+                {editingCategory
+                  ? 'Update category name, icon or parent classification.'
+                  : 'Add a new category to organize products on your store.'}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-3">
+              {/* Category Name */}
+              <div className="space-y-1">
+                <Label htmlFor="catName" className="text-xs font-semibold text-gray-800">
+                  Category Name *
+                </Label>
+                <Input
+                  id="catName"
+                  value={catFormName}
+                  onChange={(e) => setCatFormName(e.target.value)}
+                  placeholder="e.g. Smart Watches, Organic Food"
+                  className="text-xs h-9 bg-white"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              {/* Parent Category */}
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold text-gray-800">
+                  Parent Category (Hierarchy)
+                </Label>
+                <Select value={catFormParentId} onValueChange={setCatFormParentId}>
+                  <SelectTrigger className="text-xs h-9 bg-white">
+                    <SelectValue placeholder="Top-Level Category (No parent)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">
+                      📂 Top-Level Category (No parent)
+                    </SelectItem>
+                    {categoryList
+                      .filter((c) => !editingCategory || c.id !== editingCategory.id)
+                      .map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {getCategoryDisplayEmoji(c.icon)} {c.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-gray-400">
+                  Choose "Top-Level" for main categories shown on home page &amp; header.
+                </p>
+              </div>
+
+              {/* Icon / Emoji Preset Picker */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-gray-800">
+                  Category Icon &amp; Badge
+                </Label>
+                <div className="grid grid-cols-5 gap-1.5 p-2 bg-gray-50 rounded-lg border border-gray-100 max-h-36 overflow-y-auto">
+                  {CATEGORY_ICON_PRESETS.map((p) => {
+                    const isSelected = catFormIcon === p.key || catFormIcon === p.emoji
+                    return (
+                      <button
+                        key={p.key}
+                        type="button"
+                        onClick={() => setCatFormIcon(p.key)}
+                        className={`flex flex-col items-center justify-center p-1.5 rounded-md border text-center transition ${
+                          isSelected
+                            ? 'border-sky-500 bg-sky-50 text-sky-700 shadow-xs'
+                            : 'border-transparent bg-white hover:bg-gray-100 text-gray-700'
+                        }`}
+                        title={p.label}
+                      >
+                        <span className="text-lg leading-none">{p.emoji}</span>
+                        <span className="text-[9px] mt-1 truncate max-w-full font-medium">
+                          {p.key}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div className="pt-1">
+                  <Input
+                    placeholder="Or enter custom icon key or emoji (e.g. 🍕, 🎧, 👜)"
+                    value={catFormIcon}
+                    onChange={(e) => setCatFormIcon(e.target.value)}
+                    className="text-xs h-8 bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* Live Preview */}
+              <div className="p-3 bg-gradient-to-r from-sky-50/50 to-cyan-50/50 rounded-lg border border-sky-100 space-y-1.5">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-sky-700">Preview</div>
+                <div className="flex items-center gap-3">
+                  <div className="flex flex-col items-center gap-1 p-2 bg-white border border-gray-200 rounded-lg shadow-2xs w-20">
+                    <span className="text-2xl">{getCategoryDisplayEmoji(catFormIcon)}</span>
+                    <span className="text-[10px] font-medium text-gray-700 text-center truncate max-w-full">
+                      {catFormName.trim() || 'Category Name'}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-500 space-y-0.5">
+                    <div>
+                      <span className="font-semibold text-gray-700">Type: </span>
+                      {catFormParentId === 'none' ? 'Main Category (Header / Home)' : 'Subcategory'}
+                    </div>
+                    <div>
+                      <span className="font-semibold text-gray-700">Display: </span>
+                      {getCategoryDisplayEmoji(catFormIcon)} {catFormName.trim() || 'Untitled'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2 pt-2 border-t border-gray-100">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setCategoryModalOpen(false)}
+                className="text-xs h-8"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={catFormSaving || !catFormName.trim()}
+                className="bg-sky-600 hover:bg-sky-700 text-white text-xs h-8 px-4"
+              >
+                {catFormSaving ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                    Saving...
+                  </>
+                ) : editingCategory ? (
+                  'Update Category'
+                ) : (
+                  'Create Category'
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Daraz Seller Center Product Input Form */}
       <DarazProductForm
         open={formOpen}
         onOpenChange={setFormOpen}
         product={editingProduct}
-        categories={categories}
+        categories={categoryList}
         onSuccess={fetchAll}
       />
     </div>

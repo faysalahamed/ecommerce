@@ -101,7 +101,7 @@ export function HomeView({ categories }: { categories: { id: string; name: strin
               onClick={() => navigate({ name: 'category', categoryId: c.id, categoryName: c.name })}
               className="flex flex-col items-center gap-1 p-3 bg-white border rounded-lg hover:border-sky-400 hover:shadow-md transition-all"
             >
-              <span className="text-3xl">{c.icon ? CATEGORY_ICONS[c.icon] || '🛍️' : '🛍️'}</span>
+              <span className="text-3xl">{c.icon ? CATEGORY_ICONS[c.icon] || c.icon || '🛍️' : '🛍️'}</span>
               <span className="text-xs text-gray-700 text-center line-clamp-2">{c.name}</span>
             </button>
           ))}

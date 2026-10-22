@@ -30,6 +30,8 @@ import {
   Tag,
   Zap,
   Info,
+  ZoomIn,
+  X,
 } from 'lucide-react'
 import { formatBDT, discountPercent } from '@/lib/format'
 import { toast } from 'sonner'
@@ -50,6 +52,8 @@ export function ProductDetailView() {
   const [loading, setLoading] = useState(true)
   const [qty, setQty] = useState(1)
   const [activeImage, setActiveImage] = useState(0)
+  const [zoomOpen, setZoomOpen] = useState(false)
+  const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 }) // percentage position for zoom pan
   const [isWishlisted, setIsWishlisted] = useState(false)
   const [wishlistLoading, setWishlistLoading] = useState(false)
 
@@ -82,6 +86,13 @@ export function ProductDetailView() {
   const [editAddressInput, setEditAddressInput] = useState('')
   const [deliveryInfoModalOpen, setDeliveryInfoModalOpen] = useState(false)
   const [returnInfoModalOpen, setReturnInfoModalOpen] = useState(false)
+
+  const handleZoomMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = ((e.clientX - rect.left) / rect.width) * 100
+    const y = ((e.clientY - rect.top) / rect.height) * 100
+    setZoomPos({ x, y })
+  }
 
   useEffect(() => {
     fetch('/api/config')
@@ -391,7 +402,10 @@ export function ProductDetailView() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 bg-white rounded-xl p-4 md:p-6 shadow-sm border border-gray-100">
         {/* Column 1: Image Gallery & Voucher Banner (col-span-4) */}
         <div className="lg:col-span-4 space-y-3">
-          <div className="aspect-square bg-gray-50 rounded-lg overflow-hidden border border-gray-100 relative group">
+          <div
+            className="aspect-square bg-gray-50 rounded-lg overflow-hidden border border-gray-100 relative group cursor-zoom-in"
+            onClick={() => setZoomOpen(true)}
+          >
             <img
               src={product.images[activeImage] || product.images[0]}
               alt={product.name}
@@ -402,7 +416,78 @@ export function ProductDetailView() {
                 -{discount}%
               </span>
             )}
+            {/* Zoom hint icon */}
+            <div className="absolute bottom-2 right-2 bg-white/80 backdrop-blur-sm rounded-full p-1.5 shadow opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+              <ZoomIn className="h-4 w-4 text-gray-700" />
+            </div>
           </div>
+
+          {/* Fullscreen image zoom lightbox */}
+          {zoomOpen && (
+            <div
+              className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center"
+              onClick={() => setZoomOpen(false)}
+            >
+              {/* Close button */}
+              <button
+                className="absolute top-4 right-4 z-10 bg-white/10 hover:bg-white/20 text-white rounded-full p-2 transition"
+                onClick={(e) => { e.stopPropagation(); setZoomOpen(false) }}
+              >
+                <X className="h-6 w-6" />
+              </button>
+
+              {/* Thumbnail strip */}
+              {product.images.length > 1 && (
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+                  {product.images.map((img, i) => (
+                    <button
+                      key={i}
+                      onClick={(e) => { e.stopPropagation(); setActiveImage(i) }}
+                      className={`w-12 h-12 rounded border-2 overflow-hidden transition ${activeImage === i ? 'border-sky-400' : 'border-white/30 opacity-60 hover:opacity-100'}`}
+                    >
+                      <img src={img} alt="" className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Main zoomed image with pan on mouse move */}
+              <div
+                className="w-full h-full flex items-center justify-center overflow-hidden cursor-crosshair"
+                onMouseMove={handleZoomMouseMove}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <img
+                  src={product.images[activeImage] || product.images[0]}
+                  alt={product.name}
+                  className="max-h-[85vh] max-w-[85vw] object-contain select-none transition-transform duration-75"
+                  style={{
+                    transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`,
+                    transform: 'scale(1)',
+                  }}
+                  draggable={false}
+                />
+              </div>
+
+              {/* Navigation arrows */}
+              {product.images.length > 1 && (
+                <>
+                  <button
+                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white rounded-full p-2 transition"
+                    onClick={(e) => { e.stopPropagation(); setActiveImage(i => i > 0 ? i - 1 : product.images.length - 1) }}
+                  >
+                    <ChevronLeft className="h-6 w-6" />
+                  </button>
+                  <button
+                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white rounded-full p-2 transition"
+                    onClick={(e) => { e.stopPropagation(); setActiveImage(i => i < product.images.length - 1 ? i + 1 : 0) }}
+                  >
+                    <ChevronRight className="h-6 w-6" />
+                  </button>
+                </>
+              )}
+            </div>
+          )}
 
           {/* Collect Voucher Banner (from design image 1) */}
           <div className="bg-[#007455] text-white p-2.5 rounded-lg flex items-center justify-between text-xs font-semibold shadow-xs">

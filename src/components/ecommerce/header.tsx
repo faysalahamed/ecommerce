@@ -244,7 +244,7 @@ export function Header({ categories }: { categories: CategoryFE[] }) {
                     }}
                     className="flex items-center gap-2 px-3 py-2 hover:bg-sky-50 rounded text-sm text-left"
                   >
-                    <span className="text-lg">{c.icon ? CATEGORY_ICONS[c.icon] || '🛍️' : '🛍️'}</span>
+                    <span className="text-lg">{c.icon ? CATEGORY_ICONS[c.icon] || c.icon || '🛍️' : '🛍️'}</span>
                     {c.name}
                   </button>
                 ))}

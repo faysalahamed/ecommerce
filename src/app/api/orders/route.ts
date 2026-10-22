@@ -81,7 +81,8 @@ export async function POST(req: NextRequest) {
         subtotal,
         shipping,
         total,
-        status: 'CONFIRMED',
+        // COD orders start as PENDING (payment on delivery); online-paid orders are CONFIRMED immediately
+        status: paymentMethod === 'COD' ? 'PENDING' : 'CONFIRMED',
         paymentStatus: paymentMethod === 'COD' ? 'UNPAID' : 'PAID',
         paymentMethod,
         paymentRef: paymentMethod !== 'COD' ? 'PAY-' + orderNumber : null,

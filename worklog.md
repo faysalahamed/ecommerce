@@ -647,6 +647,24 @@ Work Log:
   - Added server-side real-time search input for product name/brand
   - Added product status filter dropdown (`All Status`, `Active`, `Inactive`)
   - Added pagination controls (Previous, Next, Page X of Y) and total count indicator
+- Added Category Management System:
+  - Updated `src/app/api/categories/route.ts` with complete CRUD:
+    - `GET /api/categories`: returns hierarchical tree (`roots`) + flat list with product & child counts
+    - `POST /api/categories`: creates new category with name, auto slug, parent hierarchy, and custom icon/emoji
+    - `PUT /api/categories`: edits existing category name, parent hierarchy, and icon
+    - `DELETE /api/categories?id=...`: deletes category with safeguards checking for existing products and subcategories
+  - Added dedicated **Categories** page to Admin Dashboard in `src/components/views/dashboard-view.tsx`:
+    - Left sidebar menu item with dynamic badge count
+    - Search & filter bar for category name and slug
+    - Category hierarchy view (Top-Level or Sub-category)
+    - Product and sub-category count indicators
+    - Add/Edit modal dialog with interactive icon/emoji selector and real-time live preview
+    - Delete button with confirmation and validation
+  - Added instant "+ Add New Category" quick modal in `src/components/ecommerce/daraz-product-form.tsx`:
+    - Allows admins/sellers to create and immediately select a new category without leaving product creation
+  - Verified:
+    - `bun x tsc --noEmit`: 0 errors
+    - `bun run build`: 24/24 routes compiled cleanly
 - Verified:
   - `bun x tsc --noEmit`: 0 errors
   - `bun run build`: 24/24 routes compiled cleanly
