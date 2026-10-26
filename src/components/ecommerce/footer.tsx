@@ -19,7 +19,7 @@ export function Footer({ categories }: { categories: { id: string; name: string;
 
   return (
     <footer className="mt-auto bg-gray-900 text-gray-300">
-      <div className="container mx-auto px-4 py-10 grid grid-cols-2 md:grid-cols-4 gap-6">
+      <div className="max-w-[1200px] mx-auto px-4 py-10 grid grid-cols-2 md:grid-cols-4 gap-6">
         <div>
           <h4 className="text-white font-semibold mb-3">Customer Care</h4>
           <ul className="space-y-2 text-sm">

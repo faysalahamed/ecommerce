@@ -1,44 +1,53 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { sendOtp } from '@/lib/otp'
+import { SendOtpSchema } from '@/lib/dto'
+import { successResponse, errorResponse, validationErrorResponse } from '@/lib/api-response'
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 
 // POST /api/auth/send-otp
 // Body: { phone, purpose: "REGISTER" | "RESET_PASSWORD" | "LOGIN" }
-// Returns:
-//   - In demo mode (SMS_PROVIDER=demo): { ok, code, message } — code is returned so frontend shows it via toast
-//   - In production mode (SMS_PROVIDER=twilio/vonage/sslcompuz/reve/metech): { ok, message } — SMS actually sent, no code in response
-//   - On rate limit: { error, cooldownSeconds } with HTTP 429
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
-    const { phone, purpose } = body
-
-    if (!phone) {
-      return NextResponse.json({ error: 'Phone number required' }, { status: 400 })
+    // 1. IP Rate Limiting — 3 OTP sends per 60 seconds per IP
+    const clientIp = getClientIp(req)
+    const rateLimit = checkRateLimit(`otp:${clientIp}`, 3, 60)
+    if (!rateLimit.success) {
+      return errorResponse(
+        `Too many OTP requests from this network. Please wait ${rateLimit.resetSeconds}s.`,
+        429
+      )
     }
-    if (!['REGISTER', 'RESET_PASSWORD', 'LOGIN'].includes(purpose)) {
-      return NextResponse.json({ error: 'Invalid purpose' }, { status: 400 })
+
+    // 2. Input Validation via Zod DTO Schema
+    const body = await req.json().catch(() => ({}))
+    const validation = SendOtpSchema.safeParse(body)
+    if (!validation.success) {
+      return validationErrorResponse(validation.error)
     }
 
+    const { phone, purpose } = validation.data
+
+    // 3. Dispatch OTP
     const result = await sendOtp(phone, purpose)
     if (!result.ok) {
-      return NextResponse.json(
-        { error: result.error, cooldownSeconds: result.cooldownSeconds },
-        { status: 429 }
+      return errorResponse(
+        result.error || 'Failed to dispatch OTP',
+        429
       )
     }
 
     const isDemo = (process.env.SMS_PROVIDER || 'demo').toLowerCase() === 'demo'
     const message = isDemo
       ? 'OTP sent. (Demo mode: code shown in response & toast)'
-      : `OTP sent to your phone. Valid for 5 minutes.`
+      : 'OTP sent to your phone. Valid for 5 minutes.'
 
-    return NextResponse.json({
+    return successResponse({
       ok: true,
-      ...(result.code ? { code: result.code } : {}), // only present in demo mode
+      ...(result.code ? { code: result.code } : {}),
       message,
     })
   } catch (e) {
     console.error('Send OTP error:', e)
-    return NextResponse.json({ error: 'Failed to send OTP' }, { status: 500 })
+    return errorResponse('Failed to send OTP', 500)
   }
 }

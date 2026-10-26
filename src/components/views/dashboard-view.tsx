@@ -59,6 +59,9 @@ import {
   Search,
   FolderTree,
   Tag,
+  Flame,
+  Clock,
+  Calendar,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatBDT } from '@/lib/format'
@@ -75,6 +78,7 @@ export type AdminMenuKey =
   | 'sliders'
   | 'promo-banner'
   | 'delivery-setup'
+  | 'flash-sale'
 
 export const CATEGORY_ICON_PRESETS = [
   { key: 'laptop', label: 'Electronics', emoji: '💻' },
@@ -193,6 +197,14 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
   const [modalActive, setModalActive] = useState(true)
   const [uploadingImage, setUploadingImage] = useState(false)
 
+  // Flash Sale Parameterized State
+  const [flashSaleEnabled, setFlashSaleEnabled] = useState(true)
+  const [flashSaleTitle, setFlashSaleTitle] = useState('Flash Sale')
+  const [flashSaleDiscountNote, setFlashSaleDiscountNote] = useState('On Sale Now')
+  const [flashSaleStartTime, setFlashSaleStartTime] = useState('')
+  const [flashSaleEndTime, setFlashSaleEndTime] = useState('')
+  const [flashSaleSaving, setFlashSaleSaving] = useState(false)
+
   // Fetch SiteConfig (Admin)
   const fetchConfig = async () => {
     try {
@@ -223,7 +235,80 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
       } else {
         setSliderList(HERO_SLIDES)
       }
+
+      if (d?.flashSaleConfig) {
+        setFlashSaleEnabled(Boolean(d.flashSaleConfig.enabled))
+        setFlashSaleTitle(d.flashSaleConfig.title || 'Flash Sale')
+        setFlashSaleDiscountNote(d.flashSaleConfig.discountNote || 'On Sale Now')
+        if (d.flashSaleConfig.startTime) {
+          const sDate = new Date(d.flashSaleConfig.startTime)
+          if (!isNaN(sDate.getTime())) {
+            const pad = (n: number) => String(n).padStart(2, '0')
+            setFlashSaleStartTime(`${sDate.getFullYear()}-${pad(sDate.getMonth() + 1)}-${pad(sDate.getDate())}T${pad(sDate.getHours())}:${pad(sDate.getMinutes())}`)
+          }
+        }
+        if (d.flashSaleConfig.endTime) {
+          const eDate = new Date(d.flashSaleConfig.endTime)
+          if (!isNaN(eDate.getTime())) {
+            const pad = (n: number) => String(n).padStart(2, '0')
+            setFlashSaleEndTime(`${eDate.getFullYear()}-${pad(eDate.getMonth() + 1)}-${pad(eDate.getDate())}T${pad(eDate.getHours())}:${pad(eDate.getMinutes())}`)
+          }
+        }
+      } else {
+        const now = new Date()
+        const pad = (n: number) => String(n).padStart(2, '0')
+        const sDate = new Date(now.getTime() - 3600 * 1000)
+        const eDate = new Date(now.getTime() + 86400 * 1000 * 2)
+        setFlashSaleStartTime(`${sDate.getFullYear()}-${pad(sDate.getMonth() + 1)}-${pad(sDate.getDate())}T${pad(sDate.getHours())}:${pad(sDate.getMinutes())}`)
+        setFlashSaleEndTime(`${eDate.getFullYear()}-${pad(eDate.getMonth() + 1)}-${pad(eDate.getDate())}T${pad(eDate.getHours())}:${pad(eDate.getMinutes())}`)
+      }
     } catch {}
+  }
+
+  // Save Flash Sale Configuration
+  const handleSaveFlashConfig = async () => {
+    setFlashSaleSaving(true)
+    try {
+      const payload = {
+        enabled: flashSaleEnabled,
+        title: flashSaleTitle.trim() || 'Flash Sale',
+        discountNote: flashSaleDiscountNote.trim() || 'On Sale Now',
+        startTime: flashSaleStartTime
+          ? new Date(flashSaleStartTime).toISOString()
+          : new Date().toISOString(),
+        endTime: flashSaleEndTime
+          ? new Date(flashSaleEndTime).toISOString()
+          : new Date(Date.now() + 86400 * 1000 * 2).toISOString(),
+      }
+      const res = await fetch('/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key: 'flash_sale_config',
+          value: payload,
+        }),
+      })
+      if (res.ok) {
+        toast.success('Flash Sale configuration saved successfully!')
+      } else {
+        toast.error('Failed to save Flash Sale configuration')
+      }
+    } catch {
+      toast.error('Network error saving Flash Sale configuration')
+    } finally {
+      setFlashSaleSaving(false)
+    }
+  }
+
+  // Quick preset helper for Flash Sale
+  const handleApplyFlashPreset = (hours: number) => {
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const start = new Date()
+    const end = new Date(start.getTime() + hours * 3600 * 1000)
+    setFlashSaleEnabled(true)
+    setFlashSaleStartTime(`${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}T${pad(start.getHours())}:${pad(start.getMinutes())}`)
+    setFlashSaleEndTime(`${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}T${pad(end.getHours())}:${pad(end.getMinutes())}`)
+    toast.info(`Flash Sale window set for ${hours} hours from now`)
   }
 
   // Save Delivery Config
@@ -858,6 +943,24 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
                   <Truck className="h-4 w-4 shrink-0" />
                   <span>Delivery &amp; Shipping</span>
                 </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveMenu('flash-sale')}
+                className={`w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-lg transition text-left ${
+                  activeMenu === 'flash-sale'
+                    ? 'bg-sky-600 text-white shadow-xs'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Flame className="h-4 w-4 shrink-0 text-amber-500" />
+                  <span>Flash Sale Setup</span>
+                </div>
+                {flashSaleEnabled && (
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Active" />
+                )}
               </button>
             </div>
           )}
@@ -2230,6 +2333,270 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
               </div>
             </Card>
           )}
+
+          {/* ========================================================= */}
+          {/* PAGE 8: FLASH SALE PARAMETERIZED SETUP (ADMIN)            */}
+          {/* ========================================================= */}
+          {activeMenu === 'flash-sale' && user.role === 'ADMIN' && (() => {
+            const now = Date.now()
+            const start = flashSaleStartTime ? new Date(flashSaleStartTime).getTime() : 0
+            const end = flashSaleEndTime ? new Date(flashSaleEndTime).getTime() : 0
+
+            let statusLabel = 'Disabled'
+            let statusColor = 'bg-gray-100 text-gray-600 border-gray-200'
+            let statusDesc = 'Flash Sale is currently turned off and hidden from storefront'
+
+            if (flashSaleEnabled) {
+              if (now < start) {
+                statusLabel = 'Scheduled'
+                statusColor = 'bg-amber-50 text-amber-700 border-amber-200'
+                statusDesc = `Scheduled to start automatically on ${new Date(start).toLocaleString()}`
+              } else if (now > end) {
+                statusLabel = 'Expired'
+                statusColor = 'bg-red-50 text-red-700 border-red-200'
+                statusDesc = `Campaign expired on ${new Date(end).toLocaleString()}`
+              } else {
+                const diff = Math.max(0, end - now)
+                const h = Math.floor(diff / (1000 * 60 * 60))
+                const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+                statusLabel = 'Live Now'
+                statusColor = 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                statusDesc = `Live on homepage! Ends in ${h}h ${m}m`
+              }
+            }
+
+            const flashProductCount = products.filter((p: any) => p.isFlashSale).length
+
+            return (
+              <Card className="p-5 bg-white border border-gray-200 shadow-xs space-y-6">
+                {/* Header */}
+                <div className="pb-4 border-b border-gray-100 flex items-start justify-between flex-wrap gap-3">
+                  <div>
+                    <h2 className="font-bold text-base text-gray-900 flex items-center gap-2">
+                      <Flame className="h-5 w-5 text-amber-500 fill-amber-500" /> Flash Sale Parameterized Control
+                    </h2>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Configure custom start &amp; end dates, active status, promotion title, and live countdown timer on the homepage.
+                    </p>
+                  </div>
+                  <div className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${statusColor}`}>
+                    <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
+                    <span>{statusLabel}</span>
+                  </div>
+                </div>
+
+                {/* Status Callout Banner */}
+                <div className="p-3.5 bg-gradient-to-r from-sky-50 to-blue-50/50 rounded-xl border border-sky-100 flex items-center justify-between flex-wrap gap-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-sky-600" />
+                    <span className="font-semibold text-sky-950">Current Window Status:</span>
+                    <span className="text-sky-800">{statusDesc}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-500">Products in Flash Sale:</span>
+                    <Badge variant="outline" className="bg-white text-sky-700 font-bold border-sky-200">
+                      {flashProductCount} Items
+                    </Badge>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setActiveMenu('products')}
+                      className="text-xs h-7 px-2 text-sky-600 hover:text-sky-700"
+                    >
+                      Manage Products &rarr;
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                    <Zap className="h-3.5 w-3.5 text-amber-500" /> Quick Duration Presets:
+                  </Label>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleApplyFlashPreset(12)}
+                      className="text-xs h-7.5 bg-white hover:bg-sky-50 hover:text-sky-600 border-gray-200"
+                    >
+                      ⚡ Next 12 Hours
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleApplyFlashPreset(24)}
+                      className="text-xs h-7.5 bg-white hover:bg-sky-50 hover:text-sky-600 border-gray-200 font-semibold"
+                    >
+                      ⚡ Next 24 Hours
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleApplyFlashPreset(48)}
+                      className="text-xs h-7.5 bg-white hover:bg-sky-50 hover:text-sky-600 border-gray-200"
+                    >
+                      ⚡ Next 48 Hours (2 Days)
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleApplyFlashPreset(168)}
+                      className="text-xs h-7.5 bg-white hover:bg-sky-50 hover:text-sky-600 border-gray-200"
+                    >
+                      📅 7-Day Campaign
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setFlashSaleEnabled(false)
+                        toast.info('Flash Sale disabled (toggle switch updated)')
+                      }}
+                      className="text-xs h-7.5 text-red-600 hover:text-red-700 hover:bg-red-50 border-gray-200"
+                    >
+                      ⏹️ Turn Off
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Main Configuration Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Master Switch */}
+                  <div className="sm:col-span-2 flex items-center justify-between p-3.5 bg-gray-50 rounded-xl border border-gray-200">
+                    <div className="space-y-0.5">
+                      <Label className="text-xs font-bold text-gray-800">Flash Sale Master Status</Label>
+                      <p className="text-[11px] text-gray-500">
+                        When enabled, the Flash Sale block &amp; countdown timer will appear on the homepage during the scheduled window.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={flashSaleEnabled}
+                      onCheckedChange={setFlashSaleEnabled}
+                      className="data-[state=checked]:bg-sky-600"
+                    />
+                  </div>
+
+                  {/* Title */}
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold text-gray-700">Sale Title *</Label>
+                    <Input
+                      value={flashSaleTitle}
+                      onChange={(e) => setFlashSaleTitle(e.target.value)}
+                      placeholder="e.g. 10.10 Flash Sale, Midnight Bonanza"
+                      className="text-xs h-9 bg-white"
+                    />
+                  </div>
+
+                  {/* Badge Text */}
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold text-gray-700">Promo Badge / Discount Tag</Label>
+                    <Input
+                      value={flashSaleDiscountNote}
+                      onChange={(e) => setFlashSaleDiscountNote(e.target.value)}
+                      placeholder="e.g. On Sale Now, Up to 70% OFF"
+                      className="text-xs h-9 bg-white"
+                    />
+                  </div>
+
+                  {/* Start Date & Time */}
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                      <Calendar className="h-3.5 w-3.5 text-sky-600" /> Start Date &amp; Time *
+                    </Label>
+                    <Input
+                      type="datetime-local"
+                      value={flashSaleStartTime}
+                      onChange={(e) => setFlashSaleStartTime(e.target.value)}
+                      className="text-xs h-9 bg-white font-mono"
+                      required
+                    />
+                    <p className="text-[10px] text-gray-400">
+                      When the sale automatically starts counting down on the homepage.
+                    </p>
+                  </div>
+
+                  {/* End Date & Time */}
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5 text-sky-600" /> End Date &amp; Time *
+                    </Label>
+                    <Input
+                      type="datetime-local"
+                      value={flashSaleEndTime}
+                      onChange={(e) => setFlashSaleEndTime(e.target.value)}
+                      className="text-xs h-9 bg-white font-mono"
+                      required
+                    />
+                    <p className="text-[10px] text-gray-400">
+                      When the countdown reaches 00:00:00 and sale expires.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Live Customer Preview */}
+                <div className="space-y-2 pt-2 border-t border-gray-100">
+                  <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">
+                    Storefront Live Preview:
+                  </span>
+                  <div className="p-4 bg-gray-50/80 rounded-xl border border-gray-200">
+                    <div className="flex items-center justify-between flex-wrap gap-2 pb-2">
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        <div className="flex items-center gap-1.5">
+                          <Zap className="h-4 w-4 text-sky-600 fill-sky-600 animate-pulse" />
+                          <span className="text-sm font-bold text-gray-900">
+                            {flashSaleTitle.trim() || 'Flash Sale'}
+                          </span>
+                        </div>
+                        <span className="text-[11px] font-semibold text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200">
+                          {flashSaleDiscountNote.trim() || 'On Sale Now'}
+                        </span>
+                        <div className="flex items-center gap-1 text-[11px] text-gray-500 font-medium ml-1">
+                          <span>Ending in</span>
+                          <div className="flex items-center gap-0.5 font-mono text-[10px] text-white">
+                            <span className="bg-gray-900 px-1.5 py-0.5 rounded font-bold">23</span>
+                            <span className="text-gray-900 font-bold">:</span>
+                            <span className="bg-gray-900 px-1.5 py-0.5 rounded font-bold">59</span>
+                            <span className="text-gray-900 font-bold">:</span>
+                            <span className="bg-gray-900 px-1.5 py-0.5 rounded font-bold">48</span>
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-bold text-sky-600">
+                        SHOP MORE &rarr;
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Save actions */}
+                <div className="flex gap-2 pt-2 justify-end border-t border-gray-100">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleSaveFlashConfig}
+                    disabled={flashSaleSaving}
+                    className="text-xs h-8 bg-sky-600 hover:bg-sky-700 text-white font-semibold px-4"
+                  >
+                    {flashSaleSaving ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Flash Sale Settings'
+                    )}
+                  </Button>
+                </div>
+              </Card>
+            )
+          })()}
         </main>
       </div>
 

@@ -35,6 +35,7 @@ import {
 } from 'lucide-react'
 import { formatBDT, discountPercent } from '@/lib/format'
 import { toast } from 'sonner'
+import { recordProductView } from '@/lib/browsing-history'
 
 export function ProductDetailView() {
   const view = useStore((s) => s.view)
@@ -125,6 +126,7 @@ export function ProductDetailView() {
           setProduct(data.product)
           setRelated(data.related || [])
           setReviews(data.product.reviews || [])
+          recordProductView(data.product.id, data.product.categoryId, data.product.brand)
         }
       } finally {
         if (!cancelled) setLoading(false)

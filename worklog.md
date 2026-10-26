@@ -665,6 +665,137 @@ Work Log:
   - Verified:
     - `bun x tsc --noEmit`: 0 errors
     - `bun run build`: 24/24 routes compiled cleanly
-- Verified:
-  - `bun x tsc --noEmit`: 0 errors
-  - `bun run build`: 24/24 routes compiled cleanly
+- Added Personalized "Just For You" Recommendation Engine:
+  - Client-Side Browsing History (`src/lib/browsing-history.ts`):
+    - Records product view events (productId, categoryId, brand, timestamp) in localStorage bounded to 30 items
+    - Extracts weighted interest category IDs and interest brands based on view recency and frequency
+    - Hooked into `src/components/views/product-detail-view.tsx` on product page visit
+  - Recommendation API (`src/app/api/recommendations/route.ts`):
+    - Multi-signal recommendation engine:
+      1. Logged-in user past purchases (db.order + db.orderItem)
+      2. Logged-in user wishlist (db.wishlist)
+      3. Client browsing history categories and brands
+      4. Dynamic backfill with top-selling and top-rated products
+    - Deduplicates and returns clean `ProductDTO[]` with `personalized: boolean` indicator
+  - Homepage Integration (`src/components/views/home-view.tsx`):
+    - "Just For You" dynamically calls `/api/recommendations` with client interest categories and brands
+    - Displays "✨ Personalized for you" badge when recommendation signals match
+    - Retains 6-column grid layout and centered "Load More" button
+  - Verified:
+    - `bun x tsc --noEmit`: 0 errors
+    - `bun run build`: 25/25 routes compiled cleanly
+- Added Production-Grade Architecture (DTOs, Zod Validation, Rate Limiting, Envelope):
+  - Created Standard API Envelope in `src/lib/api-response.ts`:
+    - `successResponse`: standardized `{ success: true, ...data }` payload preserving backwards compatibility
+    - `errorResponse`: standardized `{ success: false, error: message, errors }`
+    - `validationErrorResponse`: formats field-level validation errors like Spring Boot MethodArgumentNotValidException
+  - Created In-Memory Sliding-Window Rate Limiter in `src/lib/rate-limit.ts`:
+    - Tracks client IP / identifiers with automatic expired bucket cleanup
+    - Prevents brute-force on `/api/auth/login` (5 attempts / 60s)
+    - Prevents SMS abuse on `/api/auth/send-otp` (3 attempts / 60s)
+    - Prevents spam account creation on `/api/auth/register` (5 attempts / 300s)
+  - Created Enterprise DTO Layer in `src/lib/dto/`:
+    - `src/lib/dto/user.dto.ts`: `LoginSchema`, `RegisterSchema`, `SendOtpSchema`, `UpdateUserRoleSchema`, `UserDTO`, and `toUserDTO` (guarantees passwords never leak)
+    - `src/lib/dto/product.dto.ts`: `ProductQuerySchema`, `CreateProductSchema`, `UpdateProductSchema`, `ProductDTO`, and `toProductDTO` (safely projects categories, retailers, parses JSON images, hides raw DB internals)
+    - `src/lib/dto/order.dto.ts`: `CreateOrderSchema`, `UpdateOrderSchema`, `OrderDTO`, and `toOrderDTO`
+    - `src/lib/dto/category.dto.ts`: `CreateCategorySchema`, `UpdateCategorySchema`, `CategoryDTO`, and `toCategoryDTO`
+  - Refactored API routes to use DTOs and eliminate `any` types:
+    - `src/app/api/auth/login/route.ts`
+    - `src/app/api/auth/register/route.ts`
+    - `src/app/api/auth/send-otp/route.ts`
+    - `src/app/api/auth/me/route.ts`
+    - `src/app/api/admin/users/route.ts`
+    - `src/app/api/products/route.ts`
+    - `src/app/api/products/[id]/route.ts`
+    - `src/app/api/orders/route.ts`
+    - `src/app/api/categories/route.ts`
+  - Verified:
+    - `bun x tsc --noEmit`: 0 errors
+    - `bun run build`: 24/24 routes compiled cleanly
+- Added Personalized "Just For You" Recommendation Engine:
+  - Client-Side Browsing History (`src/lib/browsing-history.ts`):
+    - Records product view events (productId, categoryId, brand, timestamp) in localStorage bounded to 30 items
+    - Extracts weighted interest category IDs and interest brands based on view recency and frequency
+    - Hooked into `src/components/views/product-detail-view.tsx` on product page visit
+  - Recommendation API (`src/app/api/recommendations/route.ts`):
+    - Multi-signal recommendation engine:
+      1. Logged-in user past purchases (db.order + db.orderItem)
+      2. Logged-in user wishlist (db.wishlist)
+      3. Client browsing history categories and brands
+      4. Dynamic backfill with top-selling and top-rated products
+    - Deduplicates and returns clean `ProductDTO[]` with `personalized: boolean` indicator
+  - Homepage Integration (`src/components/views/home-view.tsx`):
+    - "Just For You" dynamically calls `/api/recommendations` with client interest categories and brands
+    - Displays "✨ Personalized for you" badge when recommendation signals match
+    - Retains 6-column grid layout and centered "Load More" button
+  - Verified:
+    - `bun x tsc --noEmit`: 0 errors
+    - `bun run build`: 25/25 routes compiled cleanly into standalone bundle
+- Redesigned Homepage & Header to Daraz-style Centered 6-Column Layout:
+  - Header Redesign (`src/components/ecommerce/header.tsx`):
+    - Aligned entire header to `max-w-[1200px] mx-auto`
+    - Perfectly centered search bar (`max-w-2xl mx-auto flex-1`) with sky-blue border, light background, search icon button
+    - Clean top utility bar and category navigation bar
+  - Homepage Redesign (`src/components/views/home-view.tsx`):
+    - Replaced 5-column grids with exact 6-column grid on desktop (`grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-3`)
+    - Flash Sale, Featured Products, and Just For You now display in clean 6-item rows
+    - Centered layout wrapped in `max-w-[1200px] mx-auto`
+    - Added centered "Load More" button at bottom of Just For You
+    - Clean square category tiles (`grid-cols-4 sm:grid-cols-6 lg:grid-cols-8`)
+  - Product Card Refinement (`src/components/ecommerce/product-card.tsx`):
+    - Proportional layout optimized for 6-column grid
+    - Clean 1:1 image, sky-blue discount badge, red flash tag, tidy 2-line title, bold price, compact Add to Cart button
+  - Footer Alignment (`src/components/ecommerce/footer.tsx`):
+    - Centered at `max-w-[1200px] mx-auto` matching header and main content
+  - Verified:
+    - `bun x tsc --noEmit`: 0 errors
+    - `bun run build`: 24/24 routes compiled cleanly
+- Added Personalized "Just For You" Recommendation Engine:
+  - Client-Side Browsing History (`src/lib/browsing-history.ts`):
+    - Records product view events (productId, categoryId, brand, timestamp) in localStorage bounded to 30 items
+    - Extracts weighted interest category IDs and interest brands based on view recency and frequency
+    - Hooked into `src/components/views/product-detail-view.tsx` on product page visit
+  - Recommendation API (`src/app/api/recommendations/route.ts`):
+    - Multi-signal recommendation engine:
+      1. Logged-in user past purchases (db.order + db.orderItem)
+      2. Logged-in user wishlist (db.wishlist)
+      3. Client browsing history categories and brands
+      4. Dynamic backfill with top-selling and top-rated products
+    - Deduplicates and returns clean `ProductDTO[]` with `personalized: boolean` indicator
+  - Homepage Integration (`src/components/views/home-view.tsx`):
+    - "Just For You" dynamically calls `/api/recommendations` with client interest categories and brands
+    - Displays "✨ Personalized for you" badge when recommendation signals match
+    - Retains 6-column grid layout and centered "Load More" button
+  - Verified:
+    - `bun x tsc --noEmit`: 0 errors
+    - `bun run build`: 25/25 routes compiled cleanly
+
+- Added Child Subcategories, On-Demand / Background Menu Loading, and Parameterized Flash Sale:
+  - Child Subcategories in "All Categories" Menu (`src/components/ecommerce/header.tsx`):
+    - Added accordion expansion for parent categories with subcategories (`c.children`)
+    - Shows expandable toggle chevron with item count badge (`ChevronDown` / `ChevronUp`)
+    - Displays indented child subcategories with tree guide (`└─`), icons/bullets, and direct navigation links
+    - Added "All in {category}" direct quick link
+    - Sheet closes gracefully upon selecting any parent or child category
+    - Accessible on both desktop header and mobile category bar
+  - On-Demand & Background Category Loading (`src/app/page.tsx`, `src/components/ecommerce/header.tsx`):
+    - Decoupled category fetching from initial page load in `page.tsx` so user site entry is instantaneous and non-blocking
+    - Asynchronously fetches categories in the background on initial mount
+    - Header supports on-demand loading: if the user clicks "All Categories" before background fetch completes, it fetches on-demand and shows a smooth loading spinner
+  - Parameterized Flash Sale Start & End Time (`src/app/api/config/route.ts`, `src/components/views/dashboard-view.tsx`, `src/components/views/home-view.tsx`):
+    - Config schema in `SiteConfig` (`flash_sale_config` key): stores `enabled`, `title`, `discountNote`, `startTime`, and `endTime`
+    - `GET /api/config` serves `flashSaleConfig` with automatic default fallbacks
+    - Admin Dashboard (`dashboard-view.tsx`):
+      - Added "Flash Sale Setup" to Admin sidebar with live status indicator pulse
+      - Added full parameterized control page: master enable switch, custom sale title, promo badge text, start date & time (`datetime-local`), and end date & time (`datetime-local`)
+      - Real-time status badge: Live Now / Scheduled / Expired / Disabled
+      - Quick duration presets: 12 Hours, 24 Hours, 48 Hours, 7 Days, Turn Off
+      - Shows count of products currently assigned to flash sale with direct shortcut to manage products
+      - Interactive live storefront preview showing customer-facing countdown bar
+    - Homepage (`home-view.tsx`):
+      - Replaced hardcoded timer with real-time countdown calculating remaining `hours`, `mins`, and `secs` against parameterized `endTime`
+      - Supports "Active Now" (counting down to end) and "Starting Soon" (counting down to start)
+      - Automatically hides the section when disabled or expired
+  - Verification:
+    - `bun x tsc --noEmit`: 0 errors
+    - `bun run build`: 25/25 routes compiled successfully into standalone production bundle

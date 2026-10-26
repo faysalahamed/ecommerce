@@ -119,75 +119,88 @@ export function ProductCard({ product, compact = false }: { product: ProductFE; 
   return (
     <Card
       onClick={() => navigate({ name: 'product', productId: product.id })}
-      className="group cursor-pointer overflow-hidden hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 border-gray-100 relative"
+      className="group cursor-pointer overflow-hidden bg-white hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 border border-gray-100 hover:border-sky-300 relative rounded-lg flex flex-col justify-between"
     >
-      {/* Discount badge */}
-      {discount && (
-        <div className="absolute top-2 left-2 z-10 bg-sky-600 text-white text-xs font-bold px-2 py-0.5 rounded">
-          -{discount}%
-        </div>
-      )}
-      {/* Flash sale badge */}
-      {product.isFlashSale && (
-        <div className="absolute top-2 right-2 z-10 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase">
-          Flash
-        </div>
-      )}
-
-      {/* Wishlist button */}
-      <button
-        onClick={toggleWishlist}
-        disabled={wishlistLoading}
-        aria-label="Toggle wishlist"
-        className="absolute bottom-[180px] right-2 z-10 bg-white/80 hover:bg-white shadow-sm rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
-      >
-        <Heart className="h-4 w-4 text-red-500" />
-      </button>
-
-      {/* Image */}
-      <div className={`relative w-full bg-gray-50 overflow-hidden ${compact ? 'aspect-square' : 'aspect-square'}`}>
+      {/* Top Image Box */}
+      <div className="relative w-full aspect-square bg-gray-50 overflow-hidden shrink-0">
         <img
           src={product.images[0] || 'https://picsum.photos/seed/placeholder/400/400'}
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           loading="lazy"
         />
+
+        {/* Discount badge */}
+        {discount !== null && discount > 0 && (
+          <span className="absolute top-1.5 left-1.5 z-10 bg-sky-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm shadow-2xs">
+            -{discount}%
+          </span>
+        )}
+
+        {/* Flash sale badge */}
+        {product.isFlashSale && (
+          <span className="absolute top-1.5 right-1.5 z-10 bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wider shadow-2xs">
+            FLASH
+          </span>
+        )}
+
+        {/* Wishlist button */}
+        <button
+          onClick={toggleWishlist}
+          disabled={wishlistLoading}
+          aria-label="Toggle wishlist"
+          className="absolute bottom-2 right-2 z-10 bg-white/90 hover:bg-white shadow-xs rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          <Heart className="h-3.5 w-3.5 text-red-500" />
+        </button>
       </div>
 
       {/* Content */}
-      <div className="p-3 space-y-1.5">
-        <h3 className="text-sm text-gray-800 line-clamp-2 leading-snug min-h-[2.5rem]">
-          {product.name}
-        </h3>
-        <div className="flex items-baseline gap-1.5 flex-wrap">
-          <span className="text-sky-600 font-bold text-base">{formatBDT(product.price)}</span>
-          {product.comparePrice && product.comparePrice > product.price && (
-            <span className="text-xs text-gray-400 line-through">
-              {formatBDT(product.comparePrice)}
+      <div className="p-2 sm:p-2.5 flex flex-col justify-between flex-1 space-y-1.5">
+        <div>
+          <h3 className="text-xs sm:text-[13px] text-gray-800 line-clamp-2 leading-snug h-8 sm:h-9 group-hover:text-sky-600 transition-colors">
+            {product.name}
+          </h3>
+          <div className="flex items-baseline gap-1.5 mt-1 flex-wrap">
+            <span className="text-sky-600 font-black text-sm sm:text-base">
+              {formatBDT(product.price)}
             </span>
-          )}
+            {product.comparePrice && product.comparePrice > product.price && (
+              <span className="text-[10px] sm:text-[11px] text-gray-400 line-through">
+                {formatBDT(product.comparePrice)}
+              </span>
+            )}
+          </div>
         </div>
-        {/* Rating */}
-        <div className="flex items-center gap-1 text-xs text-gray-500">
-          <Star className={`h-3 w-3 ${product.rating > 0 ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
-          <span>{product.rating > 0 ? product.rating.toFixed(1) : 'New'}</span>
-          <span>•</span>
-          <span>{product.soldCount} sold</span>
+
+        <div className="pt-0.5 space-y-1.5">
+          {/* Rating & Sold count */}
+          <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-gray-500">
+            <Star className={`h-3 w-3 ${product.rating > 0 ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`} />
+            <span className="font-semibold text-gray-700">
+              {product.rating > 0 ? product.rating.toFixed(1) : '5.0'}
+            </span>
+            <span>•</span>
+            <span>{product.soldCount} sold</span>
+          </div>
+
+          {/* Add to cart */}
+          <Button
+            onClick={addToCart}
+            disabled={adding || product.stock <= 0}
+            size="sm"
+            variant="outline"
+            className="w-full h-7 sm:h-7.5 text-[11px] font-semibold border-sky-600 text-sky-600 hover:bg-sky-50 hover:text-sky-700 disabled:opacity-50 transition shadow-2xs"
+          >
+            {product.stock <= 0 ? (
+              'Out of stock'
+            ) : (
+              <>
+                <ShoppingCart className="h-3 w-3 mr-1" /> Add to Cart
+              </>
+            )}
+          </Button>
         </div>
-        {/* Add to cart */}
-        <Button
-          onClick={addToCart}
-          disabled={adding || product.stock <= 0}
-          size="sm"
-          variant="outline"
-          className="w-full mt-1.5 border-sky-500 text-sky-600 hover:bg-sky-50 hover:text-sky-700 disabled:opacity-50"
-        >
-          {product.stock <= 0 ? 'Out of stock' : (
-            <>
-              <ShoppingCart className="h-3 w-3 mr-1.5" /> Add to Cart
-            </>
-          )}
-        </Button>
       </div>
     </Card>
   )

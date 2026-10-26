@@ -29,31 +29,47 @@ export default function Home() {
   const [seeding, setSeeding] = useState(false)
   const [emptyState, setEmptyState] = useState(false)
 
-  // Initial load: check session, fetch categories
+  // Initial load: unblock UI quickly with session check; load categories asynchronously in background
   useEffect(() => {
-    async function init() {
-      try {
-        const [meRes, catRes] = await Promise.all([
-          fetch('/api/auth/me'),
-          fetch('/api/categories'),
-        ])
-        const me = await meRes.json()
-        if (me.user) {
-          setUser(me.user)
-          await refreshCart()
-        }
-        const catData = await catRes.json()
-        setCategories(catData.categories || [])
+    let isMounted = true
 
-        // Detect empty database — no categories means not seeded
-        if (!catData.categories || catData.categories.length === 0) {
-          setEmptyState(true)
+    async function initSession() {
+      try {
+        const meRes = await fetch('/api/auth/me')
+        const me = await meRes.json()
+        if (me.user && isMounted) {
+          setUser(me.user)
+          refreshCart().catch(() => {})
         }
+      } catch (e) {
+        console.error('Session init error:', e)
       } finally {
-        setLoading(false)
+        if (isMounted) setLoading(false)
       }
     }
-    init()
+
+    function loadCategoriesInBackground() {
+      fetch('/api/categories')
+        .then((r) => r.json())
+        .then((catData) => {
+          if (!isMounted) return
+          const list = catData.categories || []
+          setCategories(list)
+          if (list.length === 0) {
+            setEmptyState(true)
+          }
+        })
+        .catch((e) => {
+          console.error('Background category load error:', e)
+        })
+    }
+
+    initSession()
+    loadCategoriesInBackground()
+
+    return () => {
+      isMounted = false
+    }
   }, [setUser, refreshCart])
 
   const handleSeed = async () => {

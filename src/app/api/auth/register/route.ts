@@ -1,36 +1,41 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { hashPassword, createToken, setSessionCookie } from '@/lib/auth'
 import { normalizePhone } from '@/lib/otp'
 import { isOtpEnabled } from '@/lib/config'
+import { RegisterSchema, toUserDTO } from '@/lib/dto'
+import { successResponse, errorResponse, validationErrorResponse } from '@/lib/api-response'
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
-    const { phone, email, password, name, role, storeName, otpVerified } = body
-
-    if (!phone || !password || !name) {
-      return NextResponse.json(
-        { error: 'Phone number, password and name are required' },
-        { status: 400 }
+    // 1. Rate Limiting — 5 registrations per 5 minutes per IP
+    const clientIp = getClientIp(req)
+    const rateLimit = checkRateLimit(`register:${clientIp}`, 5, 300)
+    if (!rateLimit.success) {
+      return errorResponse(
+        `Too many registration attempts. Please try again in ${rateLimit.resetSeconds} seconds.`,
+        429
       )
     }
 
+    // 2. Input Validation via Zod DTO Schema
+    const body = await req.json().catch(() => ({}))
+    const validation = RegisterSchema.safeParse(body)
+    if (!validation.success) {
+      return validationErrorResponse(validation.error)
+    }
+
+    const { phone, email, password, name, role, storeName, otpVerified } = validation.data
     const normalizedPhone = normalizePhone(phone)
 
-    // OTP verification requirement — toggle with OTP_ENABLED env var.
-    // When OTP is disabled, accounts are created directly with phoneVerified=true.
+    // 3. OTP verification requirement (check env toggle)
     const otpRequired = isOtpEnabled()
     let phoneVerified = false
 
     if (otpRequired) {
-      // Require OTP verification — caller must pass otpVerified=true AND
-      // we double-check by looking for a recently-consumed OTP for this phone + REGISTER
       if (!otpVerified) {
-        return NextResponse.json(
-          { error: 'Phone number must be verified with OTP before registration' },
-          { status: 400 }
-        )
+        return errorResponse('Phone number must be verified with OTP before registration', 400)
       }
 
       const recentOtp = await db.otpCode.findFirst({
@@ -38,40 +43,37 @@ export async function POST(req: NextRequest) {
           phone: normalizedPhone,
           purpose: 'REGISTER',
           consumed: true,
-          expiresAt: { gte: new Date(Date.now() - 30 * 60 * 1000) }, // consumed within last 30 min
+          expiresAt: { gte: new Date(Date.now() - 30 * 60 * 1000) },
         },
         orderBy: { createdAt: 'desc' },
       })
       if (!recentOtp) {
-        return NextResponse.json(
-          { error: 'Phone verification not found. Please request and verify an OTP first.' },
-          { status: 400 }
+        return errorResponse(
+          'Phone verification not found. Please request and verify an OTP first.',
+          400
         )
       }
       phoneVerified = true
     } else {
-      // OTP disabled — auto-mark as verified
       phoneVerified = true
     }
 
-    // Check phone uniqueness
+    // 4. Check uniqueness
     const existingByPhone = await db.user.findUnique({ where: { phone: normalizedPhone } })
     if (existingByPhone) {
-      return NextResponse.json({ error: 'Phone number already registered' }, { status: 409 })
+      return errorResponse('Phone number already registered', 409)
     }
 
-    // Check email uniqueness if provided
     let normalizedEmail: string | null = null
-    if (email && String(email).trim()) {
-      normalizedEmail = String(email).trim().toLowerCase()
+    if (email && email.trim()) {
+      normalizedEmail = email.trim().toLowerCase()
       const existingByEmail = await db.user.findUnique({ where: { email: normalizedEmail } })
       if (existingByEmail) {
-        return NextResponse.json({ error: 'Email already registered' }, { status: 409 })
+        return errorResponse('Email already registered', 409)
       }
     }
 
-    const finalRole = ['ADMIN', 'RETAILER', 'CUSTOMER'].includes(role) ? role : 'CUSTOMER'
-
+    // 5. Create user
     const hashed = await hashPassword(password)
     const user = await db.user.create({
       data: {
@@ -79,12 +81,13 @@ export async function POST(req: NextRequest) {
         email: normalizedEmail,
         password: hashed,
         name,
-        role: finalRole,
+        role,
         phoneVerified,
-        storeName: finalRole === 'RETAILER' ? storeName || null : null,
+        storeName: role === 'RETAILER' ? storeName || null : null,
       },
     })
 
+    // 6. Issue session cookie
     const token = await createToken({
       userId: user.id,
       email: user.phone,
@@ -93,19 +96,11 @@ export async function POST(req: NextRequest) {
     })
     await setSessionCookie(token)
 
-    return NextResponse.json({
-      user: {
-        id: user.id,
-        phone: user.phone,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        phoneVerified: user.phoneVerified,
-        storeName: user.storeName,
-      },
+    return successResponse({
+      user: toUserDTO(user),
     })
   } catch (e) {
     console.error('Register error:', e)
-    return NextResponse.json({ error: 'Registration failed' }, { status: 500 })
+    return errorResponse('Registration failed', 500)
   }
 }

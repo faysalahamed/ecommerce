@@ -5,15 +5,22 @@ import { getSession } from '@/lib/auth'
 import { HERO_SLIDES } from '@/lib/brand'
 
 // GET /api/config
-// Returns public site configuration flags, banners, delivery settings, and hero slider slides
+// Returns public site configuration flags, banners, delivery settings, hero slider slides, and parameterized flash sale config
 export async function GET() {
   let promoBanner: { title: string; tag?: string } | null = null
   let deliveryConfig: any = null
   let heroSlides: any = null
+  let flashSaleConfig: {
+    enabled: boolean
+    title: string
+    startTime: string
+    endTime: string
+    discountNote?: string
+  } | null = null
 
   try {
     const rows: any = await db.$queryRawUnsafe(
-      `SELECT key, value FROM "SiteConfig" WHERE key IN ('promo_banner', 'delivery_config', 'hero_slides')`
+      `SELECT key, value FROM "SiteConfig" WHERE key IN ('promo_banner', 'delivery_config', 'hero_slides', 'flash_sale_config')`
     )
     if (rows && rows.length > 0) {
       for (const row of rows) {
@@ -47,10 +54,35 @@ export async function GET() {
             // fallback
           }
         }
+        if (row.key === 'flash_sale_config' && row.value) {
+          try {
+            const parsed = JSON.parse(row.value)
+            if (parsed && typeof parsed === 'object') {
+              flashSaleConfig = {
+                enabled: parsed.enabled !== undefined ? Boolean(parsed.enabled) : true,
+                title: parsed.title || 'Flash Sale',
+                startTime: parsed.startTime || new Date(Date.now() - 3600 * 1000).toISOString(),
+                endTime: parsed.endTime || new Date(Date.now() + 86400 * 1000 * 2).toISOString(),
+                discountNote: parsed.discountNote || 'On Sale Now',
+              }
+            }
+          } catch {
+            // fallback
+          }
+        }
       }
     }
   } catch {
     // If SiteConfig table is empty or error
+  }
+
+  // Default fallback if not yet customized
+  const defaultFlashSaleConfig = {
+    enabled: true,
+    title: 'Flash Sale',
+    startTime: new Date(Date.now() - 3600 * 1000).toISOString(),
+    endTime: new Date(Date.now() + 86400 * 1000 * 2).toISOString(),
+    discountNote: 'On Sale Now',
   }
 
   return NextResponse.json({
@@ -58,6 +90,7 @@ export async function GET() {
     promoBanner,
     deliveryConfig,
     heroSlides: heroSlides || HERO_SLIDES,
+    flashSaleConfig: flashSaleConfig || defaultFlashSaleConfig,
   })
 }
 

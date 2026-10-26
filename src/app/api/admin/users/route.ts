@@ -1,21 +1,34 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
+import { UpdateUserRoleSchema, toUserDTO } from '@/lib/dto'
+import { successResponse, errorResponse, validationErrorResponse } from '@/lib/api-response'
 
 export async function GET() {
   try {
     const session = await getSession()
     if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Admin only' }, { status: 403 })
+      return errorResponse('Admin access required', 403)
     }
     const users = await db.user.findMany({
-      select: { id: true, email: true, phone: true, name: true, role: true, phoneVerified: true, storeName: true, createdAt: true },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        name: true,
+        role: true,
+        phoneVerified: true,
+        storeName: true,
+        createdAt: true,
+      },
       orderBy: { createdAt: 'desc' },
     })
-    return NextResponse.json({ users })
+    return successResponse({
+      users: users.map(toUserDTO),
+    })
   } catch (e) {
     console.error('Admin users GET error:', e)
-    return NextResponse.json({ error: 'Failed' }, { status: 500 })
+    return errorResponse('Failed to fetch users', 500)
   }
 }
 
@@ -23,21 +36,36 @@ export async function PUT(req: NextRequest) {
   try {
     const session = await getSession()
     if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Admin only' }, { status: 403 })
+      return errorResponse('Admin access required', 403)
     }
-    const body = await req.json()
-    const { userId, role } = body
-    if (!userId || !['ADMIN', 'RETAILER', 'CUSTOMER'].includes(role)) {
-      return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+
+    const body = await req.json().catch(() => ({}))
+    const validation = UpdateUserRoleSchema.safeParse(body)
+    if (!validation.success) {
+      return validationErrorResponse(validation.error)
     }
-    const user = await db.user.update({
+
+    const { userId, role } = validation.data
+    const updated = await db.user.update({
       where: { id: userId },
       data: { role },
-      select: { id: true, email: true, name: true, role: true },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        name: true,
+        role: true,
+        phoneVerified: true,
+        storeName: true,
+        createdAt: true,
+      },
     })
-    return NextResponse.json({ user })
+
+    return successResponse({
+      user: toUserDTO(updated),
+    })
   } catch (e) {
     console.error('Admin users PUT error:', e)
-    return NextResponse.json({ error: 'Failed' }, { status: 500 })
+    return errorResponse('Failed to update user role', 500)
   }
 }
