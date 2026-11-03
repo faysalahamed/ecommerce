@@ -44,6 +44,8 @@ export function ProductCard({ product, compact = false }: { product: ProductFE; 
   const setUser = useStore((s) => s.setUser)
   const openAuth = useStore((s) => s.openAuth)
   const refreshCart = useStore((s) => s.refreshCart)
+  const prefetchProduct = useStore((s) => s.prefetchProduct)
+  const seedProductPreview = useStore((s) => s.seedProductPreview)
   const [wishlistLoading, setWishlistLoading] = useState(false)
   const [adding, setAdding] = useState(false)
 
@@ -118,7 +120,11 @@ export function ProductCard({ product, compact = false }: { product: ProductFE; 
 
   return (
     <Card
-      onClick={() => navigate({ name: 'product', productId: product.id })}
+      onMouseEnter={() => prefetchProduct(product.id)}
+      onClick={() => {
+        seedProductPreview(product)
+        navigate({ name: 'product', productId: product.id })
+      }}
       className="group cursor-pointer overflow-hidden bg-white hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 border border-gray-100 hover:border-sky-300 relative rounded-lg flex flex-col justify-between"
     >
       {/* Top Image Box */}

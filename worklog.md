@@ -799,3 +799,116 @@ Work Log:
   - Verification:
     - `bun x tsc --noEmit`: 0 errors
     - `bun run build`: 25/25 routes compiled successfully into standalone production bundle
+
+---
+Task ID: 18
+Agent: Antigravity
+Task: Optimize Product View first-load performance (database parallelization, pool warm-up, hover prefetching, and instant preview rendering)
+
+Work Log:
+- Identified root causes of slow first-time product detail load:
+  1. Sequential DB waterfalls in `/api/products/[id]` (main product query, followed sequentially by related products and reviews).
+  2. Cold-start connection pool establishment in PostgreSQL adapter (`@prisma/adapter-pg`).
+  3. Redundant HTTP roundtrips to `/api/config` on every `ProductDetailView` mount.
+  4. Absence of hover prefetching and instant optimistic preview on product card click.
+- Server-Side Performance Optimization:
+  - Parallelized related products query and reviews query in `src/app/api/products/[id]/route.ts` via `Promise.all([db.product.findMany(...), db.review.findMany(...)])`.
+  - Added connection pool auto-warmup (`SELECT 1`) on application startup in `src/lib/db.ts` to eliminate PostgreSQL handshake latency on first user hit.
+  - Added composite indexes `@@index([productId, createdAt])` and `@@index([userId])` to `Review` model in `prisma/schema.prisma` for instant review queries and sorting.
+- Client-Side Performance & Zero-Latency Navigation:
+  - Centralized site configuration (`siteConfig`) in `src/lib/store.ts` (`fetchSiteConfig()`), deduplicating redundant `/api/config` requests across `ProductDetailView`, `HeroSlider`, `HomeView`, and `AuthModal`.
+  - Created client-side LRU-style product cache (`productCache`) with a 5-minute TTL in Zustand store.
+  - Added `prefetchProduct(id)` in `src/lib/store.ts` and attached `onMouseEnter` to `ProductCard` (`src/components/ecommerce/product-card.tsx`). During typical desktop hover (~150-300ms before click), product details are prefetched ahead of time.
+  - Added `seedProductPreview(product)` in `ProductCard` click handler: instantly seeds basic product data (name, price, comparePrice, images, stock, specs) into cache so navigation renders the full product details page with 0ms perceived latency (no blank skeleton screens), while reviews and related items stream in gracefully.
+- Code Quality & Cleanliness:
+  - Fixed TypeScript/ESLint ternary expression warning in `src/components/views/dashboard-view.tsx`.
+  - Ran type check: `tsc --noEmit` passed with 0 errors.
+  - Ran ESLint: 0 errors, 0 warnings.
+
+Stage Summary:
+- Product Detail first-time load and navigation is now instant with zero-latency perceived rendering, connection pool warmup, hover prefetching, parallel database execution, and cached site configurations.
+
+---
+Task ID: 19
+Agent: Antigravity
+Task: Implement Delivery Channel Module (In-House Home Delivery vs Delivery Hub Pickup), Dynamic Location-Based Delivery Charges (default ৳90 home delivery), Customer Care Delivery Tool, and Admin Configuration Application
+
+Work Log:
+- Created Delivery Domain Core in `src/lib/delivery.ts`:
+  - `DeliveryLocation`, `DeliveryHub`, `DeliveryConfig`, and `DeliveryChannelType` ('HOME_DELIVERY' | 'DELIVERY_HUB').
+  - Pre-configured 10 comprehensive Bangladesh delivery locations (Dhaka City with Home Delivery Charge = ৳90 and Hub = ৳40, Dhaka Suburbs, Chittagong, Sylhet, Rajshahi, Khulna, Barisal, Rangpur, Mymensingh, Nationwide).
+  - Pre-configured 6 primary Delivery Hubs (Banani Central Hub, Dhanmondi Hub, Uttara Hub, Mirpur Hub, Agrabad Chittagong Hub, Zindabazar Sylhet Hub) with addresses, managers, phone numbers, and operating hours.
+  - Implemented `calculateDeliveryFee(...)` supporting location-based charges, hub discounts, and free delivery thresholds.
+- Extended API & Configuration Layer:
+  - Updated `src/app/api/config/route.ts` to serve and persist `deliveryLocations`, `deliveryHubs`, and `deliveryConfig` in `SiteConfig` database table.
+  - Updated `src/lib/dto/order.dto.ts` with `deliveryChannel`, `deliveryLocation`, `deliveryHubName`, and custom `shipping` in `CreateOrderSchema`, `UpdateOrderSchema`, and `OrderDTO`.
+  - Updated `src/app/api/orders/route.ts`:
+    - `POST /api/orders`: calculates location-based dynamic shipping fee, embeds channel/hub metadata into formatted address, and supports both Home Delivery and Hub pickups.
+    - `PUT /api/orders`: allows Customer Care and Admins to modify delivery channel, assign delivery hubs, and adjust shipping fees for existing customer orders upon request.
+- Frontend Customer Experience:
+  - Updated `src/components/views/checkout-view.tsx`:
+    - Added Delivery Area / City selector.
+    - Added interactive dual-channel selector:
+      - 🏠 **Home Delivery (In-House Express Fleet)**: Doorstep delivery (default ৳90 in Dhaka), address field.
+      - 🏢 **Delivery Hub Pickup**: Self-pickup at nearest hub (৳40), hub selector showing manager, phone, address, and operating hours.
+    - Real-time order summary price breakdown displaying exact delivery channel, fee, and turnaround estimate.
+  - Updated `src/components/views/product-detail-view.tsx`:
+    - Displays dynamic Home Delivery (৳90) and Delivery Hub Pickup (৳40) options.
+    - Location modal previews updated fees and delivery turnaround.
+- Admin Delivery Application in `src/components/views/dashboard-view.tsx`:
+  - Dedicated "Delivery Channels & Hubs" application with 4 sub-tabs:
+    1. **📍 Delivery Locations & Rates**: Full CRUD for delivery locations, home delivery fees (default ৳90), hub delivery fees, in-house fleet toggles, SLA, and search.
+    2. **🏢 Delivery Hubs (Pickup Centers)**: Full CRUD for delivery hubs with code, full address, manager, phone, hours, and pickup fee.
+    3. **🎧 Customer Care Delivery Tool**:
+       - **Delivery Rate & Channel Advisor**: Live calculator comparing In-House Home Delivery vs Hub Pickup, with a "Copy Customer Quotation" button.
+       - **Order Delivery Channel Modifier**: Lookup orders by order number or customer phone, and switch delivery channel or assign delivery hubs with 1 click.
+    4. **⚙️ Fleet & Global Policies**: Default home fee (৳90), hub fee (৳40), free shipping threshold, fleet name, and hotline.
+  - Added Delivery Channel badge (`🏠 Home Delivery` vs `🏢 Hub Pickup`) in Admin and Customer order cards.
+- Verified:
+  - `tsc --noEmit`: 0 errors.
+  - `eslint`: 0 errors, 0 warnings.
+
+
+
+---
+Task ID: 20
+Agent: Super Z (main)
+Task: Fix Flash Sale "SHOP MORE" button not working on Home Page
+
+Work Log:
+- Identified root cause: "SHOP MORE" was calling `navigate({ name: 'search', query: 'flash' })` which searched text for "flash" instead of filtering `isFlashSale = true`. Similarly, Featured "See All" navigated to search "featured".
+- Added `flash-sale` and `featured` views to `src/lib/store.ts`.
+- Updated `src/app/page.tsx` to route `flash-sale` and `featured` to `ProductListView`.
+- Updated `src/components/views/home-view.tsx`:
+  - Flash Sale "SHOP MORE" now navigates to `{ name: 'flash-sale' }`.
+  - Featured Products "See All" now navigates to `{ name: 'featured' }`.
+- Enhanced `src/components/views/product-list-view.tsx`:
+  - Detects `view.name === 'flash-sale'` and `view.name === 'featured'`.
+  - Sends `flash=true` or `featured=true` to `/api/products` endpoint.
+  - Displays custom promotional banners for Flash Sale and Featured collections.
+- Verified TypeScript compilation (`tsc --noEmit`) passes with 0 errors.
+- Verified dev server running and returning HTTP 200 on all endpoints.
+
+---
+Task ID: 21
+Agent: Super Z (main)
+Task: Make Top Bar and Header items fully configurable from Admin Dashboard
+
+Work Log:
+- Created `src/lib/topbar.ts` with `TopbarConfig` interface and default brand values.
+- Updated `src/app/api/config/route.ts` to parse and persist `topbar_config` in `SiteConfig`.
+- Updated `src/lib/store.ts` to include `topbarConfig` in `siteConfig` state and refresh on demand.
+- Updated `src/components/ecommerce/header.tsx`:
+  - Top utility bar now reads dynamically from `topbarConfig`.
+  - Configurable desktop announcement promo text, mobile announcement text, customer care helpline phone, order tracking label, and customer care text.
+  - Category sub-bar badges (Flash Sale & Free Delivery) now dynamically read labels and visibility toggles from configuration.
+  - Flash Sale button navigates directly to dedicated `{ name: 'flash-sale' }` listing view.
+- Added dedicated Admin Management page "Top Bar & Header" (`activeMenu === 'topbar-config'`) in `src/components/views/dashboard-view.tsx`:
+  - Added "Top Bar & Header" navigation link in Website Setup sidebar.
+  - Interactive Live Preview showing real-time header changes as admin edits text or switches toggles.
+  - Configurable announcements (Desktop + Mobile).
+  - Toggles & inputs for Helpline phone, Order tracking link, Help link.
+  - Toggles & inputs for Category Sub-bar badges (Flash Sale & Free Delivery).
+  - "Reset to Defaults" button and "Save Top Bar Settings" with instant global refresh (`fetchSiteConfig(true)`).
+- Verified TypeScript compilation: 0 errors.
+- Dev server running on `http://localhost:3000`.

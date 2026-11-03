@@ -62,12 +62,33 @@ import {
   Flame,
   Clock,
   Calendar,
+  MapPin,
+  Phone,
+  Headphones,
+  Copy,
+  Building2,
+  Navigation,
+  Home,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatBDT } from '@/lib/format'
 import { useStore as useZustandStore } from '@/lib/store'
 import { DarazProductForm } from '@/components/ecommerce/daraz-product-form'
 import { HERO_SLIDES, type HeroSlide } from '@/lib/brand'
+import {
+  DEFAULT_DELIVERY_CONFIG,
+  DEFAULT_DELIVERY_LOCATIONS,
+  DEFAULT_DELIVERY_HUBS,
+  type DeliveryLocation,
+  type DeliveryHub,
+  type DeliveryConfig,
+  type DeliveryChannelType,
+  calculateDeliveryFee,
+} from '@/lib/delivery'
+import {
+  DEFAULT_TOPBAR_CONFIG,
+  type TopbarConfig,
+} from '@/lib/topbar'
 
 export type AdminMenuKey =
   | 'overview'
@@ -79,6 +100,7 @@ export type AdminMenuKey =
   | 'promo-banner'
   | 'delivery-setup'
   | 'flash-sale'
+  | 'topbar-config'
 
 export const CATEGORY_ICON_PRESETS = [
   { key: 'laptop', label: 'Electronics', emoji: '💻' },
@@ -119,6 +141,7 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
   const user = useZustandStore((s) => s.user)
   const navigate = useStore((s) => s.navigate)
   const openAuth = useStore((s) => s.openAuth)
+  const fetchSiteConfig = useStore((s) => s.fetchSiteConfig)
 
   // Active left sidebar menu
   const [activeMenu, setActiveMenu] = useState<AdminMenuKey>('overview')
@@ -173,12 +196,61 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
   // Delivery & Shipping config state (SiteConfig: 'delivery_config')
   const [deliveryAddress, setDeliveryAddress] = useState('Dhaka, Dhaka North, Banani Road No. 12 - 19')
   const [deliveryFee, setDeliveryFee] = useState('90')
-  const [deliveryEstimatedDays, setDeliveryEstimatedDays] = useState('Guaranteed within 2-3 days')
+  const [deliveryEstimatedDays, setDeliveryEstimatedDays] = useState('Guaranteed within 1-2 days')
   const [deliveryCod, setDeliveryCod] = useState(true)
   const [defaultReturnPolicy, setDefaultReturnPolicy] = useState('14 days easy return')
   const [changeOfMindApplicable, setChangeOfMindApplicable] = useState(true)
   const [authenticText, setAuthenticText] = useState('100% Authentic Product')
+  const [defaultHubFee, setDefaultHubFee] = useState('40')
+  const [freeThreshold, setFreeThreshold] = useState('1500')
+  const [inHouseFleetName, setInHouseFleetName] = useState('ShopZilla In-House Express Fleet')
+  const [customerCareHotline, setCustomerCareHotline] = useState('+880 9612-345678')
   const [deliveryConfigLoading, setDeliveryConfigLoading] = useState(false)
+
+  // Delivery Channel & Location Module Application State
+  const [deliverySubTab, setDeliverySubTab] = useState<'locations' | 'hubs' | 'customer-care' | 'settings'>('locations')
+  const [deliveryLocationsList, setDeliveryLocationsList] = useState<DeliveryLocation[]>(DEFAULT_DELIVERY_LOCATIONS)
+  const [deliveryHubsList, setDeliveryHubsList] = useState<DeliveryHub[]>(DEFAULT_DELIVERY_HUBS)
+  const [locationSearch, setLocationSearch] = useState('')
+  const [hubSearch, setHubSearch] = useState('')
+
+  // Location Modal State
+  const [locModalOpen, setLocModalOpen] = useState(false)
+  const [editingLocId, setEditingLocId] = useState<string | null>(null)
+  const [locName, setLocName] = useState('')
+  const [locDivision, setLocDivision] = useState('Dhaka')
+  const [locHomeCharge, setLocHomeCharge] = useState('90')
+  const [locHubCharge, setLocHubCharge] = useState('40')
+  const [locEstHome, setLocEstHome] = useState('1-2 Days (In-House Fleet)')
+  const [locEstHub, setLocEstHub] = useState('1-2 Days')
+  const [locInHouse, setLocInHouse] = useState(true)
+  const [locHubAvailable, setLocHubAvailable] = useState(true)
+  const [locCod, setLocCod] = useState(true)
+  const [locActive, setLocActive] = useState(true)
+
+  // Hub Modal State
+  const [hubModalOpen, setHubModalOpen] = useState(false)
+  const [editingHubId, setEditingHubId] = useState<string | null>(null)
+  const [hubName, setHubName] = useState('')
+  const [hubCode, setHubCode] = useState('')
+  const [hubLocationName, setHubLocationName] = useState('Dhaka City (Inside Dhaka)')
+  const [hubDivision, setHubDivision] = useState('Dhaka')
+  const [hubAddress, setHubAddress] = useState('')
+  const [hubPhone, setHubPhone] = useState('')
+  const [hubManager, setHubManager] = useState('')
+  const [hubHours, setHubHours] = useState('9:00 AM - 8:30 PM (Sat - Thu)')
+  const [hubFee, setHubFee] = useState('40')
+  const [hubActive, setHubActive] = useState(true)
+
+  // Customer Care Tool State
+  const [ccLocationId, setCcLocationId] = useState<string>('loc_dhaka_city')
+  const [ccSubtotal, setCcSubtotal] = useState<string>('850')
+  const [ccSearchOrderQuery, setCcSearchOrderQuery] = useState('')
+  const [ccSelectedOrder, setCcSelectedOrder] = useState<any | null>(null)
+  const [ccNewChannel, setCcNewChannel] = useState<'HOME_DELIVERY' | 'DELIVERY_HUB'>('HOME_DELIVERY')
+  const [ccNewHubName, setCcNewHubName] = useState('')
+  const [ccNewShipping, setCcNewShipping] = useState('90')
+  const [ccSavingOrder, setCcSavingOrder] = useState(false)
 
   // Hero Slider setup state (SiteConfig: 'hero_slides')
   const [sliderList, setSliderList] = useState<HeroSlide[]>(HERO_SLIDES)
@@ -205,6 +277,22 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
   const [flashSaleEndTime, setFlashSaleEndTime] = useState('')
   const [flashSaleSaving, setFlashSaleSaving] = useState(false)
 
+  // Top Bar & Header Navigation State (SiteConfig: 'topbar_config')
+  const [topbarEnabled, setTopbarEnabled] = useState(DEFAULT_TOPBAR_CONFIG.enabled)
+  const [topbarPromoText, setTopbarPromoText] = useState(DEFAULT_TOPBAR_CONFIG.promoText)
+  const [topbarPromoTextMobile, setTopbarPromoTextMobile] = useState(DEFAULT_TOPBAR_CONFIG.promoTextMobile)
+  const [topbarContactPhone, setTopbarContactPhone] = useState(DEFAULT_TOPBAR_CONFIG.contactPhone)
+  const [topbarTrackOrderText, setTopbarTrackOrderText] = useState(DEFAULT_TOPBAR_CONFIG.trackOrderText)
+  const [topbarHelpText, setTopbarHelpText] = useState(DEFAULT_TOPBAR_CONFIG.helpText)
+  const [topbarSubBarFlashText, setTopbarSubBarFlashText] = useState(DEFAULT_TOPBAR_CONFIG.subBarFlashText)
+  const [topbarSubBarFreeDeliveryText, setTopbarSubBarFreeDeliveryText] = useState(DEFAULT_TOPBAR_CONFIG.subBarFreeDeliveryText)
+  const [topbarShowTrackOrder, setTopbarShowTrackOrder] = useState(DEFAULT_TOPBAR_CONFIG.showTrackOrder)
+  const [topbarShowHelp, setTopbarShowHelp] = useState(DEFAULT_TOPBAR_CONFIG.showHelp)
+  const [topbarShowContactPhone, setTopbarShowContactPhone] = useState(DEFAULT_TOPBAR_CONFIG.showContactPhone)
+  const [topbarShowFlashSaleBadge, setTopbarShowFlashSaleBadge] = useState(DEFAULT_TOPBAR_CONFIG.showFlashSaleBadge)
+  const [topbarShowFreeDeliveryBadge, setTopbarShowFreeDeliveryBadge] = useState(DEFAULT_TOPBAR_CONFIG.showFreeDeliveryBadge)
+  const [topbarSaving, setTopbarSaving] = useState(false)
+
   // Fetch SiteConfig (Admin)
   const fetchConfig = async () => {
     try {
@@ -223,11 +311,28 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
       if (d?.deliveryConfig) {
         if (d.deliveryConfig.defaultAddress !== undefined) setDeliveryAddress(d.deliveryConfig.defaultAddress)
         if (d.deliveryConfig.standardFee !== undefined) setDeliveryFee(String(d.deliveryConfig.standardFee))
+        if (d.deliveryConfig.defaultHomeDeliveryFee !== undefined) setDeliveryFee(String(d.deliveryConfig.defaultHomeDeliveryFee))
+        if (d.deliveryConfig.defaultHubDeliveryFee !== undefined) setDefaultHubFee(String(d.deliveryConfig.defaultHubDeliveryFee))
+        if (d.deliveryConfig.freeDeliveryThreshold !== undefined) setFreeThreshold(String(d.deliveryConfig.freeDeliveryThreshold))
+        if (d.deliveryConfig.inHouseFleetName !== undefined) setInHouseFleetName(d.deliveryConfig.inHouseFleetName)
+        if (d.deliveryConfig.customerCareHotline !== undefined) setCustomerCareHotline(d.deliveryConfig.customerCareHotline)
         if (d.deliveryConfig.estimatedDays !== undefined) setDeliveryEstimatedDays(d.deliveryConfig.estimatedDays)
         if (d.deliveryConfig.codAvailable !== undefined) setDeliveryCod(d.deliveryConfig.codAvailable)
         if (d.deliveryConfig.returnPolicyDefault !== undefined) setDefaultReturnPolicy(d.deliveryConfig.returnPolicyDefault)
         if (d.deliveryConfig.changeOfMindApplicable !== undefined) setChangeOfMindApplicable(d.deliveryConfig.changeOfMindApplicable)
         if (d.deliveryConfig.authenticProductText !== undefined) setAuthenticText(d.deliveryConfig.authenticProductText)
+      }
+
+      if (d?.deliveryLocations && Array.isArray(d.deliveryLocations) && d.deliveryLocations.length > 0) {
+        setDeliveryLocationsList(d.deliveryLocations)
+      } else {
+        setDeliveryLocationsList(DEFAULT_DELIVERY_LOCATIONS)
+      }
+
+      if (d?.deliveryHubs && Array.isArray(d.deliveryHubs) && d.deliveryHubs.length > 0) {
+        setDeliveryHubsList(d.deliveryHubs)
+      } else {
+        setDeliveryHubsList(DEFAULT_DELIVERY_HUBS)
       }
 
       if (d?.heroSlides && Array.isArray(d.heroSlides) && d.heroSlides.length > 0) {
@@ -261,6 +366,22 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
         const eDate = new Date(now.getTime() + 86400 * 1000 * 2)
         setFlashSaleStartTime(`${sDate.getFullYear()}-${pad(sDate.getMonth() + 1)}-${pad(sDate.getDate())}T${pad(sDate.getHours())}:${pad(sDate.getMinutes())}`)
         setFlashSaleEndTime(`${eDate.getFullYear()}-${pad(eDate.getMonth() + 1)}-${pad(eDate.getDate())}T${pad(eDate.getHours())}:${pad(eDate.getMinutes())}`)
+      }
+
+      if (d?.topbarConfig) {
+        setTopbarEnabled(d.topbarConfig.enabled ?? true)
+        if (d.topbarConfig.promoText !== undefined) setTopbarPromoText(d.topbarConfig.promoText)
+        if (d.topbarConfig.promoTextMobile !== undefined) setTopbarPromoTextMobile(d.topbarConfig.promoTextMobile)
+        if (d.topbarConfig.contactPhone !== undefined) setTopbarContactPhone(d.topbarConfig.contactPhone)
+        if (d.topbarConfig.trackOrderText !== undefined) setTopbarTrackOrderText(d.topbarConfig.trackOrderText)
+        if (d.topbarConfig.helpText !== undefined) setTopbarHelpText(d.topbarConfig.helpText)
+        if (d.topbarConfig.subBarFlashText !== undefined) setTopbarSubBarFlashText(d.topbarConfig.subBarFlashText)
+        if (d.topbarConfig.subBarFreeDeliveryText !== undefined) setTopbarSubBarFreeDeliveryText(d.topbarConfig.subBarFreeDeliveryText)
+        if (d.topbarConfig.showTrackOrder !== undefined) setTopbarShowTrackOrder(d.topbarConfig.showTrackOrder)
+        if (d.topbarConfig.showHelp !== undefined) setTopbarShowHelp(d.topbarConfig.showHelp)
+        if (d.topbarConfig.showContactPhone !== undefined) setTopbarShowContactPhone(d.topbarConfig.showContactPhone)
+        if (d.topbarConfig.showFlashSaleBadge !== undefined) setTopbarShowFlashSaleBadge(d.topbarConfig.showFlashSaleBadge)
+        if (d.topbarConfig.showFreeDeliveryBadge !== undefined) setTopbarShowFreeDeliveryBadge(d.topbarConfig.showFreeDeliveryBadge)
       }
     } catch {}
   }
@@ -311,6 +432,63 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
     toast.info(`Flash Sale window set for ${hours} hours from now`)
   }
 
+  // Save Topbar Configuration (Admin)
+  const handleSaveTopbarConfig = async () => {
+    setTopbarSaving(true)
+    try {
+      const payload: TopbarConfig = {
+        enabled: topbarEnabled,
+        promoText: topbarPromoText.trim(),
+        promoTextMobile: topbarPromoTextMobile.trim(),
+        contactPhone: topbarContactPhone.trim(),
+        trackOrderText: topbarTrackOrderText.trim(),
+        helpText: topbarHelpText.trim(),
+        subBarFlashText: topbarSubBarFlashText.trim(),
+        subBarFreeDeliveryText: topbarSubBarFreeDeliveryText.trim(),
+        showTrackOrder: topbarShowTrackOrder,
+        showHelp: topbarShowHelp,
+        showContactPhone: topbarShowContactPhone,
+        showFlashSaleBadge: topbarShowFlashSaleBadge,
+        showFreeDeliveryBadge: topbarShowFreeDeliveryBadge,
+      }
+      const res = await fetch('/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key: 'topbar_config',
+          value: payload,
+        }),
+      })
+      if (res.ok) {
+        toast.success('Top bar configuration saved successfully!')
+        await fetchSiteConfig(true)
+      } else {
+        toast.error('Failed to save top bar configuration')
+      }
+    } catch {
+      toast.error('Network error saving top bar configuration')
+    } finally {
+      setTopbarSaving(false)
+    }
+  }
+
+  const handleResetTopbarDefaults = () => {
+    setTopbarEnabled(DEFAULT_TOPBAR_CONFIG.enabled)
+    setTopbarPromoText(DEFAULT_TOPBAR_CONFIG.promoText)
+    setTopbarPromoTextMobile(DEFAULT_TOPBAR_CONFIG.promoTextMobile)
+    setTopbarContactPhone(DEFAULT_TOPBAR_CONFIG.contactPhone)
+    setTopbarTrackOrderText(DEFAULT_TOPBAR_CONFIG.trackOrderText)
+    setTopbarHelpText(DEFAULT_TOPBAR_CONFIG.helpText)
+    setTopbarSubBarFlashText(DEFAULT_TOPBAR_CONFIG.subBarFlashText)
+    setTopbarSubBarFreeDeliveryText(DEFAULT_TOPBAR_CONFIG.subBarFreeDeliveryText)
+    setTopbarShowTrackOrder(DEFAULT_TOPBAR_CONFIG.showTrackOrder)
+    setTopbarShowHelp(DEFAULT_TOPBAR_CONFIG.showHelp)
+    setTopbarShowContactPhone(DEFAULT_TOPBAR_CONFIG.showContactPhone)
+    setTopbarShowFlashSaleBadge(DEFAULT_TOPBAR_CONFIG.showFlashSaleBadge)
+    setTopbarShowFreeDeliveryBadge(DEFAULT_TOPBAR_CONFIG.showFreeDeliveryBadge)
+    toast.info('Top bar reset to default brand values (remember to click Save)')
+  }
+
   // Save Delivery Config
   const handleSaveDeliveryConfig = async () => {
     setDeliveryConfigLoading(true)
@@ -322,7 +500,12 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
           key: 'delivery_config',
           value: {
             defaultAddress: deliveryAddress.trim(),
-            standardFee: parseFloat(deliveryFee) || 0,
+            standardFee: parseFloat(deliveryFee) || 90,
+            defaultHomeDeliveryFee: parseFloat(deliveryFee) || 90,
+            defaultHubDeliveryFee: parseFloat(defaultHubFee) || 40,
+            freeDeliveryThreshold: parseFloat(freeThreshold) || 0,
+            inHouseFleetName: inHouseFleetName.trim(),
+            customerCareHotline: customerCareHotline.trim(),
             estimatedDays: deliveryEstimatedDays.trim(),
             codAvailable: deliveryCod,
             returnPolicyDefault: defaultReturnPolicy.trim(),
@@ -333,6 +516,7 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
       })
       if (res.ok) {
         toast.success('Delivery and shipping settings saved!')
+        useZustandStore.getState().fetchSiteConfig(true)
       } else {
         toast.error('Failed to save delivery configuration')
       }
@@ -341,6 +525,301 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
     } finally {
       setDeliveryConfigLoading(false)
     }
+  }
+
+  // Save Delivery Locations list
+  const saveDeliveryLocations = async (locations: DeliveryLocation[]) => {
+    try {
+      const res = await fetch('/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key: 'delivery_locations',
+          value: locations,
+        }),
+      })
+      if (res.ok) {
+        setDeliveryLocationsList(locations)
+        useZustandStore.getState().fetchSiteConfig(true)
+        return true
+      }
+      return false
+    } catch {
+      return false
+    }
+  }
+
+  // Location Modal Handlers
+  const handleOpenAddLocation = () => {
+    setEditingLocId(null)
+    setLocName('')
+    setLocDivision('Dhaka')
+    setLocHomeCharge('90')
+    setLocHubCharge('40')
+    setLocEstHome('1-2 Days (In-House Fleet)')
+    setLocEstHub('1-2 Days')
+    setLocInHouse(true)
+    setLocHubAvailable(true)
+    setLocCod(true)
+    setLocActive(true)
+    setLocModalOpen(true)
+  }
+
+  const handleOpenEditLocation = (loc: DeliveryLocation) => {
+    setEditingLocId(loc.id)
+    setLocName(loc.name)
+    setLocDivision(loc.division)
+    setLocHomeCharge(String(loc.homeDeliveryCharge))
+    setLocHubCharge(String(loc.hubDeliveryCharge))
+    setLocEstHome(loc.estimatedDaysHome)
+    setLocEstHub(loc.estimatedDaysHub)
+    setLocInHouse(loc.inHouseDeliveryAvailable)
+    setLocHubAvailable(loc.hubPickupAvailable)
+    setLocCod(loc.codAvailable)
+    setLocActive(loc.active)
+    setLocModalOpen(true)
+  }
+
+  const handleSaveLocationModal = async () => {
+    if (!locName.trim()) {
+      toast.error('Location name is required')
+      return
+    }
+
+    const homeCharge = parseFloat(locHomeCharge) || 90
+    const hubCharge = parseFloat(locHubCharge) || 40
+
+    let updated: DeliveryLocation[]
+    if (editingLocId) {
+      updated = deliveryLocationsList.map((l) =>
+        l.id === editingLocId
+          ? {
+              ...l,
+              name: locName.trim(),
+              division: locDivision,
+              homeDeliveryCharge: homeCharge,
+              hubDeliveryCharge: hubCharge,
+              estimatedDaysHome: locEstHome.trim() || '1-2 Days',
+              estimatedDaysHub: locEstHub.trim() || '1-2 Days',
+              inHouseDeliveryAvailable: locInHouse,
+              hubPickupAvailable: locHubAvailable,
+              codAvailable: locCod,
+              active: locActive,
+            }
+          : l
+      )
+    } else {
+      const newLoc: DeliveryLocation = {
+        id: 'loc_' + Date.now(),
+        name: locName.trim(),
+        division: locDivision,
+        homeDeliveryCharge: homeCharge,
+        hubDeliveryCharge: hubCharge,
+        estimatedDaysHome: locEstHome.trim() || '1-2 Days',
+        estimatedDaysHub: locEstHub.trim() || '1-2 Days',
+        inHouseDeliveryAvailable: locInHouse,
+        hubPickupAvailable: locHubAvailable,
+        codAvailable: locCod,
+        active: locActive,
+      }
+      updated = [...deliveryLocationsList, newLoc]
+    }
+
+    const success = await saveDeliveryLocations(updated)
+    if (success) {
+      toast.success(editingLocId ? 'Delivery location updated!' : 'New delivery location added!')
+      setLocModalOpen(false)
+    } else {
+      toast.error('Failed to save delivery location')
+    }
+  }
+
+  const handleDeleteLocation = async (id: string) => {
+    if (deliveryLocationsList.length <= 1) {
+      toast.error('At least one delivery location must remain active')
+      return
+    }
+    const filtered = deliveryLocationsList.filter((l) => l.id !== id)
+    const success = await saveDeliveryLocations(filtered)
+    if (success) {
+      toast.success('Delivery location removed')
+    } else {
+      toast.error('Failed to delete delivery location')
+    }
+  }
+
+  const handleToggleLocationActive = async (id: string, active: boolean) => {
+    const updated = deliveryLocationsList.map((l) => (l.id === id ? { ...l, active } : l))
+    await saveDeliveryLocations(updated)
+  }
+
+  // Save Delivery Hubs list
+  const saveDeliveryHubs = async (hubs: DeliveryHub[]) => {
+    try {
+      const res = await fetch('/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key: 'delivery_hubs',
+          value: hubs,
+        }),
+      })
+      if (res.ok) {
+        setDeliveryHubsList(hubs)
+        useZustandStore.getState().fetchSiteConfig(true)
+        return true
+      }
+      return false
+    } catch {
+      return false
+    }
+  }
+
+  // Hub Modal Handlers
+  const handleOpenAddHub = () => {
+    setEditingHubId(null)
+    setHubName('')
+    setHubCode('HUB-' + Math.floor(100 + Math.random() * 900))
+    setHubLocationName(deliveryLocationsList[0]?.name || 'Dhaka City (Inside Dhaka)')
+    setHubDivision(deliveryLocationsList[0]?.division || 'Dhaka')
+    setHubAddress('')
+    setHubPhone('+880 1711-000000')
+    setHubManager('')
+    setHubHours('9:00 AM - 8:30 PM (Sat - Thu)')
+    setHubFee('40')
+    setHubActive(true)
+    setHubModalOpen(true)
+  }
+
+  const handleOpenEditHub = (hub: DeliveryHub) => {
+    setEditingHubId(hub.id)
+    setHubName(hub.name)
+    setHubCode(hub.code)
+    setHubLocationName(hub.locationName)
+    setHubDivision(hub.division)
+    setHubAddress(hub.address)
+    setHubPhone(hub.phone)
+    setHubManager(hub.managerName || '')
+    setHubHours(hub.operatingHours)
+    setHubFee(String(hub.fee))
+    setHubActive(hub.active)
+    setHubModalOpen(true)
+  }
+
+  const handleSaveHubModal = async () => {
+    if (!hubName.trim() || !hubAddress.trim()) {
+      toast.error('Hub name and full address are required')
+      return
+    }
+
+    const feeNum = parseFloat(hubFee) || 40
+
+    let updated: DeliveryHub[]
+    if (editingHubId) {
+      updated = deliveryHubsList.map((h) =>
+        h.id === editingHubId
+          ? {
+              ...h,
+              name: hubName.trim(),
+              code: hubCode.trim() || h.code,
+              locationName: hubLocationName,
+              division: hubDivision,
+              address: hubAddress.trim(),
+              phone: hubPhone.trim(),
+              managerName: hubManager.trim(),
+              operatingHours: hubHours.trim(),
+              fee: feeNum,
+              active: hubActive,
+            }
+          : h
+      )
+    } else {
+      const newHub: DeliveryHub = {
+        id: 'hub_' + Date.now(),
+        name: hubName.trim(),
+        code: hubCode.trim() || 'HUB-' + Date.now().toString().slice(-4),
+        locationName: hubLocationName,
+        division: hubDivision,
+        address: hubAddress.trim(),
+        phone: hubPhone.trim(),
+        managerName: hubManager.trim(),
+        operatingHours: hubHours.trim(),
+        fee: feeNum,
+        active: hubActive,
+      }
+      updated = [...deliveryHubsList, newHub]
+    }
+
+    const success = await saveDeliveryHubs(updated)
+    if (success) {
+      toast.success(editingHubId ? 'Delivery Hub updated!' : 'New Delivery Hub added!')
+      setHubModalOpen(false)
+    } else {
+      toast.error('Failed to save delivery hub')
+    }
+  }
+
+  const handleDeleteHub = async (id: string) => {
+    const filtered = deliveryHubsList.filter((h) => h.id !== id)
+    const success = await saveDeliveryHubs(filtered)
+    if (success) {
+      toast.success('Delivery hub removed')
+    } else {
+      toast.error('Failed to delete delivery hub')
+    }
+  }
+
+  const handleToggleHubActive = async (id: string, active: boolean) => {
+    const updated = deliveryHubsList.map((h) => (h.id === id ? { ...h, active } : h))
+    await saveDeliveryHubs(updated)
+  }
+
+  // Customer Care Tool Action: Update order channel
+  const handleCustomerCareUpdateOrder = async () => {
+    if (!ccSelectedOrder) {
+      toast.error('Please select an order first')
+      return
+    }
+
+    setCcSavingOrder(true)
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: ccSelectedOrder.id,
+          deliveryChannel: ccNewChannel,
+          deliveryHubName: ccNewChannel === 'DELIVERY_HUB' ? ccNewHubName : undefined,
+          shipping: parseFloat(ccNewShipping) || 0,
+        }),
+      })
+
+      if (res.ok) {
+        const d = await res.json()
+        toast.success(`Order #${ccSelectedOrder.orderNumber} delivery channel updated!`)
+        // Update local order list
+        setOrders((prev) => prev.map((o) => (o.id === ccSelectedOrder.id ? d.order : o)))
+        setCcSelectedOrder(d.order)
+      } else {
+        toast.error('Failed to update order delivery channel')
+      }
+    } catch {
+      toast.error('Network error updating order')
+    } finally {
+      setCcSavingOrder(false)
+    }
+  }
+
+  // Copy Customer Care Quote Helper
+  const handleCopyCustomerCareQuote = (loc: DeliveryLocation) => {
+    const hubs = deliveryHubsList.filter(
+      (h) => h.active && (h.locationName === loc.name || h.division === loc.division)
+    )
+    const hubText = hubs.length > 0 ? `nearest hub (${hubs[0].name})` : 'our nearest delivery hub'
+    const quote = `Hello! For ${loc.name}: In-House Home Delivery is ৳${loc.homeDeliveryCharge} (${loc.estimatedDaysHome}). Alternatively, self-pickup at ${hubText} is only ৳${loc.hubDeliveryCharge}. For assistance, call our Customer Care at ${customerCareHotline}.`
+
+    navigator.clipboard.writeText(quote)
+    toast.success('Customer quotation copied to clipboard!')
   }
 
   // Save Promotional Banner
@@ -941,8 +1420,11 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
               >
                 <div className="flex items-center gap-2.5">
                   <Truck className="h-4 w-4 shrink-0" />
-                  <span>Delivery &amp; Shipping</span>
+                  <span>Delivery Channels &amp; Hubs</span>
                 </div>
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${activeMenu === 'delivery-setup' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                  {deliveryLocationsList.length}
+                </span>
               </button>
 
               <button
@@ -959,6 +1441,24 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
                   <span>Flash Sale Setup</span>
                 </div>
                 {flashSaleEnabled && (
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Active" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveMenu('topbar-config')}
+                className={`w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-lg transition text-left ${
+                  activeMenu === 'topbar-config'
+                    ? 'bg-sky-600 text-white shadow-xs'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Navigation className="h-4 w-4 shrink-0 text-sky-400" />
+                  <span>Top Bar &amp; Header</span>
+                </div>
+                {topbarEnabled && (
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Active" />
                 )}
               </button>
@@ -1093,10 +1593,10 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
                     </div>
                     <div>
                       <div className="font-bold text-xs text-gray-900 group-hover:text-emerald-600">
-                        Setup Delivery &amp; Shipping
+                        Delivery Channels &amp; Hubs
                       </div>
                       <p className="text-[11px] text-gray-500 mt-0.5">
-                        Standard fee ৳ {deliveryFee}, COD &amp; warranty rules.
+                        Home fee ৳{deliveryFee}, Hubs fee ৳{defaultHubFee}, and Customer Care tools.
                       </p>
                     </div>
                   </button>
@@ -1551,7 +2051,11 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
                 const toggleOne = (id: string) => {
                   setSelectedPendingIds((prev) => {
                     const next = new Set(prev)
-                    next.has(id) ? next.delete(id) : next.add(id)
+                    if (next.has(id)) {
+                      next.delete(id)
+                    } else {
+                      next.add(id)
+                    }
                     return next
                   })
                 }
@@ -1724,6 +2228,15 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
                             {o.paymentStatus}
                           </Badge>
                           <Badge variant="outline">{o.paymentMethod}</Badge>
+                          {o.deliveryChannel === 'DELIVERY_HUB' || (typeof o.address === 'string' && o.address.includes('DELIVERY_HUB')) ? (
+                            <Badge variant="outline" className="bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold text-[10px]">
+                              🏢 Hub Pickup
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-sky-50 text-sky-800 border-sky-300 font-semibold text-[10px]">
+                              🏠 Home Delivery
+                            </Badge>
+                          )}
                         </div>
                       </div>
 
@@ -2227,111 +2740,993 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
           )}
 
           {/* ========================================================= */}
-          {/* PAGE 7: DELIVERY & SHIPPING SETUP (ADMIN)                 */}
+          {/* PAGE 7: DELIVERY CHANNELS, LOCATIONS & CUSTOMER CARE TOOL */}
           {/* ========================================================= */}
           {activeMenu === 'delivery-setup' && user.role === 'ADMIN' && (
-            <Card className="p-5 bg-white border border-gray-200 shadow-xs space-y-5">
-              <div className="pb-3 border-b border-gray-100">
-                <h2 className="font-bold text-base text-gray-900 flex items-center gap-2">
-                  <Truck className="h-5 w-5 text-sky-600" /> Delivery, Shipping &amp; Warranty Configuration
-                </h2>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Configure default delivery hub locations, flat shipping charges, turnaround estimates, and warranty policies across product detail views.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1 sm:col-span-2">
-                  <Label className="text-xs font-semibold text-gray-700">Default Delivery Location / Hub</Label>
-                  <Input
-                    value={deliveryAddress}
-                    onChange={(e) => setDeliveryAddress(e.target.value)}
-                    placeholder="e.g. Dhaka, Dhaka North, Banani Road No. 12 - 19"
-                    className="text-xs h-9 bg-white"
-                  />
-                  <p className="text-[11px] text-gray-400">
-                    Displayed on product pages before customer specifies custom delivery address.
-                  </p>
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs font-semibold text-gray-700">Standard Delivery Fee (৳)</Label>
-                  <Input
-                    type="number"
-                    value={deliveryFee}
-                    onChange={(e) => setDeliveryFee(e.target.value)}
-                    placeholder="90"
-                    className="text-xs h-9 bg-white"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs font-semibold text-gray-700">Guaranteed Delivery Duration</Label>
-                  <Input
-                    value={deliveryEstimatedDays}
-                    onChange={(e) => setDeliveryEstimatedDays(e.target.value)}
-                    placeholder="e.g. Guaranteed within 2-3 days"
-                    className="text-xs h-9 bg-white"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs font-semibold text-gray-700">Default Return Policy</Label>
-                  <Input
-                    value={defaultReturnPolicy}
-                    onChange={(e) => setDefaultReturnPolicy(e.target.value)}
-                    placeholder="e.g. 14 days easy return"
-                    className="text-xs h-9 bg-white"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs font-semibold text-gray-700">Authenticity Badge Text</Label>
-                  <Input
-                    value={authenticText}
-                    onChange={(e) => setAuthenticText(e.target.value)}
-                    placeholder="e.g. 100% Authentic Product"
-                    className="text-xs h-9 bg-white"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className="space-y-0.5">
-                    <Label className="text-xs font-semibold text-gray-700">Cash on Delivery (COD)</Label>
-                    <p className="text-[11px] text-gray-400">Allow customers to pay cash upon package receipt</p>
+            <div className="space-y-5">
+              {/* Main Card */}
+              <Card className="p-5 bg-white border border-gray-200 shadow-xs space-y-5">
+                {/* Header */}
+                <div className="pb-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <h2 className="font-bold text-base text-gray-900 flex items-center gap-2">
+                      <Truck className="h-5 w-5 text-sky-600" /> Delivery Channels, Locations &amp; Customer Care Tool
+                    </h2>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Configure in-house delivery vs pickup hubs, location-based shipping charges (default ৳90 home delivery), and customer care dispatch tools.
+                    </p>
                   </div>
-                  <Switch
-                    checked={deliveryCod}
-                    onCheckedChange={setDeliveryCod}
-                    className="data-[state=checked]:bg-sky-600"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className="space-y-0.5">
-                    <Label className="text-xs font-semibold text-gray-700">Change of Mind Applicable</Label>
-                    <p className="text-[11px] text-gray-400">Permit returns for change of mind on unopened goods</p>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="bg-sky-50 text-sky-700 font-semibold px-2.5 py-1 rounded-md border border-sky-200">
+                      Home Default: ৳{deliveryFee}
+                    </span>
+                    <span className="bg-emerald-50 text-emerald-700 font-semibold px-2.5 py-1 rounded-md border border-emerald-200">
+                      Hub Default: ৳{defaultHubFee}
+                    </span>
                   </div>
-                  <Switch
-                    checked={changeOfMindApplicable}
-                    onCheckedChange={setChangeOfMindApplicable}
-                    className="data-[state=checked]:bg-sky-600"
-                  />
                 </div>
-              </div>
 
-              <div className="flex gap-2 pt-2 justify-end border-t border-gray-100">
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleSaveDeliveryConfig}
-                  disabled={deliveryConfigLoading}
-                  className="text-xs h-8 bg-sky-600 hover:bg-sky-700 text-white font-semibold"
-                >
-                  {deliveryConfigLoading ? 'Saving...' : 'Save Delivery & Shipping Settings'}
-                </Button>
-              </div>
-            </Card>
+                {/* Navigation Sub-Tabs */}
+                <div className="flex flex-wrap gap-1.5 p-1 bg-gray-100 rounded-lg text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setDeliverySubTab('locations')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition ${
+                      deliverySubTab === 'locations'
+                        ? 'bg-white text-sky-700 shadow-xs font-bold'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <MapPin className="h-3.5 w-3.5" />
+                    <span>Delivery Locations &amp; Rates ({deliveryLocationsList.length})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDeliverySubTab('hubs')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition ${
+                      deliverySubTab === 'hubs'
+                        ? 'bg-white text-sky-700 shadow-xs font-bold'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <Store className="h-3.5 w-3.5" />
+                    <span>Delivery Hubs ({deliveryHubsList.length})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDeliverySubTab('customer-care')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition ${
+                      deliverySubTab === 'customer-care'
+                        ? 'bg-white text-sky-700 shadow-xs font-bold'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <Headphones className="h-3.5 w-3.5 text-purple-600" />
+                    <span>Customer Care Tool</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDeliverySubTab('settings')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition ${
+                      deliverySubTab === 'settings'
+                        ? 'bg-white text-sky-700 shadow-xs font-bold'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <Settings className="h-3.5 w-3.5" />
+                    <span>Fleet &amp; Global Policies</span>
+                  </button>
+                </div>
+
+                {/* ------------------------------------------------------------------ */}
+                {/* SUB-TAB 1: DELIVERY LOCATIONS & DYNAMIC CHARGES                   */}
+                {/* ------------------------------------------------------------------ */}
+                {deliverySubTab === 'locations' && (
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="relative flex-1 max-w-sm">
+                        <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-400" />
+                        <Input
+                          value={locationSearch}
+                          onChange={(e) => setLocationSearch(e.target.value)}
+                          placeholder="Search location or division..."
+                          className="text-xs h-8 pl-8"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleOpenAddLocation}
+                        className="text-xs h-8 bg-sky-600 hover:bg-sky-700 text-white font-semibold"
+                      >
+                        <Plus className="h-3.5 w-3.5 mr-1" /> Add Delivery Location
+                      </Button>
+                    </div>
+
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <Table>
+                        <TableHeader className="bg-gray-50/70 text-[11px]">
+                          <TableRow>
+                            <TableHead className="font-bold">Location &amp; Division</TableHead>
+                            <TableHead className="font-bold">Home Delivery Fee</TableHead>
+                            <TableHead className="font-bold">Hub Delivery Fee</TableHead>
+                            <TableHead className="font-bold">In-House Fleet</TableHead>
+                            <TableHead className="font-bold">Estimated Turnaround</TableHead>
+                            <TableHead className="font-bold">Status</TableHead>
+                            <TableHead className="text-right font-bold">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody className="text-xs">
+                          {deliveryLocationsList
+                            .filter(
+                              (loc) =>
+                                loc.name.toLowerCase().includes(locationSearch.toLowerCase()) ||
+                                loc.division.toLowerCase().includes(locationSearch.toLowerCase())
+                            )
+                            .map((loc) => (
+                              <TableRow key={loc.id} className="hover:bg-gray-50/60">
+                                <TableCell>
+                                  <div className="font-semibold text-gray-900">{loc.name}</div>
+                                  <div className="text-[10px] text-gray-400">{loc.division} Division</div>
+                                </TableCell>
+                                <TableCell>
+                                  <span className="font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200">
+                                    ৳ {loc.homeDeliveryCharge}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                    ৳ {loc.hubDeliveryCharge}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  {loc.inHouseDeliveryAvailable ? (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200">
+                                      <CheckCircle2 className="h-3 w-3 text-sky-600" /> In-House Express
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                                      Partner Courier
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-[11px] text-gray-600">
+                                  <div>Home: {loc.estimatedDaysHome}</div>
+                                  <div className="text-gray-400 text-[10px]">Hub: {loc.estimatedDaysHub}</div>
+                                </TableCell>
+                                <TableCell>
+                                  <Switch
+                                    checked={loc.active}
+                                    onCheckedChange={(val) => handleToggleLocationActive(loc.id, val)}
+                                    className="data-[state=checked]:bg-sky-600 scale-90"
+                                  />
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleCopyCustomerCareQuote(loc)}
+                                      title="Copy customer quote"
+                                      className="h-7 w-7 p-0 text-gray-500 hover:text-sky-600"
+                                    >
+                                      <Copy className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleOpenEditLocation(loc)}
+                                      className="h-7 w-7 p-0 text-gray-500 hover:text-sky-600"
+                                    >
+                                      <Edit className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDeleteLocation(loc.id)}
+                                      className="h-7 w-7 p-0 text-gray-500 hover:text-red-600"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                )}
+
+                {/* ------------------------------------------------------------------ */}
+                {/* SUB-TAB 2: DELIVERY HUBS (PICKUP CENTERS)                         */}
+                {/* ------------------------------------------------------------------ */}
+                {deliverySubTab === 'hubs' && (
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="relative flex-1 max-w-sm">
+                        <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-400" />
+                        <Input
+                          value={hubSearch}
+                          onChange={(e) => setHubSearch(e.target.value)}
+                          placeholder="Search delivery hub by name, address or code..."
+                          className="text-xs h-8 pl-8"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleOpenAddHub}
+                        className="text-xs h-8 bg-sky-600 hover:bg-sky-700 text-white font-semibold"
+                      >
+                        <Plus className="h-3.5 w-3.5 mr-1" /> Add Delivery Hub
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                      {deliveryHubsList
+                        .filter(
+                          (hub) =>
+                            hub.name.toLowerCase().includes(hubSearch.toLowerCase()) ||
+                            hub.address.toLowerCase().includes(hubSearch.toLowerCase()) ||
+                            hub.code.toLowerCase().includes(hubSearch.toLowerCase())
+                        )
+                        .map((hub) => (
+                          <div
+                            key={hub.id}
+                            className="p-3.5 bg-gray-50/70 border border-gray-200 rounded-lg space-y-2 relative"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <div className="flex items-center gap-1.5">
+                                  <Store className="h-4 w-4 text-emerald-600" />
+                                  <h3 className="font-bold text-xs text-gray-900">{hub.name}</h3>
+                                  <span className="text-[10px] bg-gray-200 text-gray-700 px-1.5 py-0.2 rounded font-mono">
+                                    {hub.code}
+                                  </span>
+                                </div>
+                                <div className="text-[11px] text-gray-500 mt-0.5">
+                                  Location: {hub.locationName} ({hub.division} Division)
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <Switch
+                                  checked={hub.active}
+                                  onCheckedChange={(val) => handleToggleHubActive(hub.id, val)}
+                                  className="data-[state=checked]:bg-emerald-600 scale-90"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleOpenEditHub(hub)}
+                                  className="h-7 w-7 p-0 text-gray-500 hover:text-sky-600"
+                                >
+                                  <Edit className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteHub(hub.id)}
+                                  className="h-7 w-7 p-0 text-gray-500 hover:text-red-600"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+
+                            <div className="text-xs text-gray-700 flex items-start gap-1.5 pt-1 border-t border-gray-200">
+                              <MapPin className="h-3.5 w-3.5 text-gray-400 shrink-0 mt-0.5" />
+                              <span className="line-clamp-2">{hub.address}</span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-600 pt-1">
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-3 w-3 text-gray-400" />
+                                <span className="line-clamp-1">{hub.operatingHours}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Phone className="h-3 w-3 text-gray-400" />
+                                <span>{hub.phone}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-1 border-t border-gray-200/80 text-[11px]">
+                              <span className="text-gray-500">
+                                Manager: <strong className="text-gray-700">{hub.managerName || 'Assigned Agent'}</strong>
+                              </span>
+                              <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                Pickup Fee: ৳{hub.fee}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ------------------------------------------------------------------ */}
+                {/* SUB-TAB 3: CUSTOMER CARE DELIVERY TOOL                            */}
+                {/* ------------------------------------------------------------------ */}
+                {deliverySubTab === 'customer-care' && (() => {
+                  const ccLoc = deliveryLocationsList.find((l) => l.id === ccLocationId) || deliveryLocationsList[0]
+                  const ccHubs = deliveryHubsList.filter(
+                    (h) => h.active && (h.locationName === ccLoc.name || h.division === ccLoc.division)
+                  )
+                  const subtotalNum = parseFloat(ccSubtotal) || 0
+                  const freeThreshNum = parseFloat(freeThreshold) || 1500
+                  const isFreePromo = freeThreshNum > 0 && subtotalNum >= freeThreshNum
+
+                  return (
+                    <div className="space-y-5">
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                        {/* Left: Customer Care Live Advisor (col-span-7) */}
+                        <div className="lg:col-span-7 space-y-4 p-4 bg-purple-50/40 border border-purple-200 rounded-xl">
+                          <div className="flex items-center justify-between border-b border-purple-200/70 pb-2.5">
+                            <div className="flex items-center gap-2">
+                              <div className="p-1.5 rounded-md bg-purple-600 text-white">
+                                <Headphones className="h-4 w-4" />
+                              </div>
+                              <div>
+                                <h3 className="font-bold text-sm text-gray-900">
+                                  Customer Care Delivery Advisor
+                                </h3>
+                                <p className="text-[11px] text-gray-500">
+                                  Instantly quote Home Delivery vs Delivery Hub fees and turnaround time to calling customers.
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleCopyCustomerCareQuote(ccLoc)}
+                              className="text-xs h-7 border-purple-300 text-purple-700 hover:bg-purple-100"
+                            >
+                              <Copy className="h-3 w-3 mr-1" /> Copy Quote
+                            </Button>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <Label className="text-xs font-semibold text-gray-700">Customer Location / City</Label>
+                              <select
+                                value={ccLocationId}
+                                onChange={(e) => setCcLocationId(e.target.value)}
+                                className="w-full text-xs h-9 mt-1 px-2.5 bg-white border border-gray-300 rounded-md font-medium"
+                              >
+                                {deliveryLocationsList.map((loc) => (
+                                  <option key={loc.id} value={loc.id}>
+                                    {loc.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <Label className="text-xs font-semibold text-gray-700">Cart / Order Value (৳)</Label>
+                              <Input
+                                type="number"
+                                value={ccSubtotal}
+                                onChange={(e) => setCcSubtotal(e.target.value)}
+                                placeholder="850"
+                                className="text-xs h-9 mt-1 bg-white"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Side-by-side Channel Comparison */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                            {/* Home Delivery Card */}
+                            <div className="p-3 bg-white rounded-lg border border-sky-200 shadow-2xs space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-xs text-sky-900 flex items-center gap-1.5">
+                                  <Home className="h-3.5 w-3.5 text-sky-600" /> In-House Home Delivery
+                                </span>
+                                <span className="text-xs font-extrabold text-sky-600">
+                                  {isFreePromo ? 'FREE' : `৳ ${ccLoc.homeDeliveryCharge}`}
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-gray-600 space-y-1">
+                                <div>Estimated SLA: <strong>{ccLoc.estimatedDaysHome}</strong></div>
+                                <div>Fleet: {ccLoc.inHouseDeliveryAvailable ? 'In-House Courier Fleet' : 'Third-Party Courier'}</div>
+                                <div className="text-emerald-600 font-medium">✓ Doorstep Delivery &amp; COD</div>
+                              </div>
+                            </div>
+
+                            {/* Hub Pickup Card */}
+                            <div className="p-3 bg-white rounded-lg border border-emerald-200 shadow-2xs space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-xs text-emerald-900 flex items-center gap-1.5">
+                                  <Store className="h-3.5 w-3.5 text-emerald-600" /> Delivery Hub Pickup
+                                </span>
+                                <span className="text-xs font-extrabold text-emerald-600">
+                                  {isFreePromo ? 'FREE' : `৳ ${ccLoc.hubDeliveryCharge}`}
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-gray-600 space-y-1">
+                                <div>Estimated SLA: <strong>{ccLoc.estimatedDaysHub}</strong></div>
+                                <div>Customer Savings: <strong className="text-emerald-700">৳{Math.max(0, ccLoc.homeDeliveryCharge - ccLoc.hubDeliveryCharge)}</strong></div>
+                                <div className="text-gray-500">Available Hubs: {ccHubs.length} Center{ccHubs.length > 1 ? 's' : ''}</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Hubs details for the customer */}
+                          {ccHubs.length > 0 && (
+                            <div className="bg-white p-3 rounded-lg border border-purple-200 space-y-2 text-xs">
+                              <span className="font-bold text-gray-800 text-[11px] uppercase tracking-wider block">
+                                Recommended Pickup Hubs in {ccLoc.name}:
+                              </span>
+                              <div className="space-y-1.5">
+                                {ccHubs.map((h) => (
+                                  <div key={h.id} className="p-2 bg-gray-50 rounded text-[11px] flex items-start justify-between">
+                                    <div>
+                                      <div className="font-bold text-gray-800">{h.name} ({h.code})</div>
+                                      <div className="text-gray-500">{h.address}</div>
+                                      <div className="text-gray-400">Hours: {h.operatingHours} • Phone: {h.phone}</div>
+                                    </div>
+                                    <span className="font-bold text-emerald-600">৳{h.fee}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Right: Order Delivery Channel Modifier (col-span-5) */}
+                        <div className="lg:col-span-5 space-y-3.5 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+                          <div>
+                            <h3 className="font-bold text-sm text-gray-900 flex items-center gap-1.5">
+                              <Sliders className="h-4 w-4 text-sky-600" />
+                              Order Delivery Channel Modifier
+                            </h3>
+                            <p className="text-[11px] text-gray-500 mt-0.5">
+                              Search an order and switch customer between Home Delivery or Delivery Hub upon request.
+                            </p>
+                          </div>
+
+                          <div className="flex gap-2">
+                            <Input
+                              value={ccSearchOrderQuery}
+                              onChange={(e) => setCcSearchOrderQuery(e.target.value)}
+                              placeholder="Enter Order # (e.g. DZ12345678) or phone..."
+                              className="text-xs h-8 bg-white"
+                            />
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => {
+                                const q = ccSearchOrderQuery.trim().toLowerCase()
+                                if (!q) return
+                                const found = orders.find(
+                                  (o) =>
+                                    o.orderNumber?.toLowerCase().includes(q) ||
+                                    o.phone?.toLowerCase().includes(q)
+                                )
+                                if (found) {
+                                  setCcSelectedOrder(found)
+                                  setCcNewChannel(
+                                    found.deliveryChannel === 'DELIVERY_HUB' ||
+                                      (typeof found.address === 'string' && found.address.includes('DELIVERY_HUB'))
+                                      ? 'DELIVERY_HUB'
+                                      : 'HOME_DELIVERY'
+                                  )
+                                  setCcNewHubName(found.deliveryHubName || deliveryHubsList[0]?.name || '')
+                                  setCcNewShipping(String(found.shipping || 90))
+                                  toast.success(`Found Order #${found.orderNumber}`)
+                                } else {
+                                  toast.error('Order not found with that number or phone')
+                                }
+                              }}
+                              className="text-xs h-8 bg-sky-600 text-white font-semibold shrink-0"
+                            >
+                              Search
+                            </Button>
+                          </div>
+
+                          {ccSelectedOrder ? (
+                            <div className="p-3 bg-white rounded-lg border border-gray-200 space-y-3 text-xs">
+                              <div className="flex items-center justify-between border-b pb-2">
+                                <div>
+                                  <div className="font-bold text-gray-900">Order #{ccSelectedOrder.orderNumber}</div>
+                                  <div className="text-[11px] text-gray-500">Customer: {ccSelectedOrder.recipientName} ({ccSelectedOrder.phone})</div>
+                                </div>
+                                <span className="bg-sky-50 text-sky-700 font-bold px-2 py-0.5 rounded text-[11px]">
+                                  Current: {ccSelectedOrder.deliveryChannel || 'HOME_DELIVERY'}
+                                </span>
+                              </div>
+
+                              <div className="space-y-2">
+                                <div>
+                                  <Label className="text-xs">Change Delivery Channel</Label>
+                                  <div className="grid grid-cols-2 gap-2 mt-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setCcNewChannel('HOME_DELIVERY')
+                                        setCcNewShipping('90')
+                                      }}
+                                      className={`p-2 rounded border text-xs font-semibold text-center transition ${
+                                        ccNewChannel === 'HOME_DELIVERY'
+                                          ? 'border-sky-600 bg-sky-50 text-sky-700'
+                                          : 'border-gray-200 text-gray-600'
+                                      }`}
+                                    >
+                                      Home Delivery (৳90)
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setCcNewChannel('DELIVERY_HUB')
+                                        setCcNewShipping('40')
+                                        if (!ccNewHubName) setCcNewHubName(deliveryHubsList[0]?.name || '')
+                                      }}
+                                      className={`p-2 rounded border text-xs font-semibold text-center transition ${
+                                        ccNewChannel === 'DELIVERY_HUB'
+                                          ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
+                                          : 'border-gray-200 text-gray-600'
+                                      }`}
+                                    >
+                                      Delivery Hub (৳40)
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {ccNewChannel === 'DELIVERY_HUB' && (
+                                  <div>
+                                    <Label className="text-xs">Assign Delivery Hub</Label>
+                                    <select
+                                      value={ccNewHubName}
+                                      onChange={(e) => setCcNewHubName(e.target.value)}
+                                      className="w-full text-xs h-8 px-2 bg-white border border-gray-300 rounded mt-1"
+                                    >
+                                      {deliveryHubsList.map((h) => (
+                                        <option key={h.id} value={h.name}>
+                                          {h.name} — {h.address}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                )}
+
+                                <div>
+                                  <Label className="text-xs">Adjust Shipping Fee (৳)</Label>
+                                  <Input
+                                    type="number"
+                                    value={ccNewShipping}
+                                    onChange={(e) => setCcNewShipping(e.target.value)}
+                                    className="text-xs h-8 mt-1"
+                                  />
+                                </div>
+                              </div>
+
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={handleCustomerCareUpdateOrder}
+                                disabled={ccSavingOrder}
+                                className="w-full text-xs h-8 bg-sky-600 hover:bg-sky-700 text-white font-semibold"
+                              >
+                                {ccSavingOrder ? 'Updating...' : 'Save Order Delivery Channel'}
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="p-4 bg-white rounded-lg border border-dashed border-gray-200 text-center text-xs text-gray-400">
+                              Search an order by Order # or Phone to view and modify its delivery channel.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* ------------------------------------------------------------------ */}
+                {/* SUB-TAB 4: FLEET & GLOBAL POLICIES                                */}
+                {/* ------------------------------------------------------------------ */}
+                {deliverySubTab === 'settings' && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1 sm:col-span-2">
+                        <Label className="text-xs font-semibold text-gray-700">Default Delivery Location / Hub</Label>
+                        <Input
+                          value={deliveryAddress}
+                          onChange={(e) => setDeliveryAddress(e.target.value)}
+                          placeholder="e.g. Dhaka, Dhaka North, Banani Road No. 12 - 19"
+                          className="text-xs h-9 bg-white"
+                        />
+                        <p className="text-[11px] text-gray-400">
+                          Displayed on product pages before customer specifies custom delivery address.
+                        </p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-gray-700">Default Home Delivery Fee (৳)</Label>
+                        <Input
+                          type="number"
+                          value={deliveryFee}
+                          onChange={(e) => setDeliveryFee(e.target.value)}
+                          placeholder="90"
+                          className="text-xs h-9 bg-white"
+                        />
+                        <p className="text-[10px] text-gray-400">Default rate when location is not customized</p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-gray-700">Default Hub Delivery Fee (৳)</Label>
+                        <Input
+                          type="number"
+                          value={defaultHubFee}
+                          onChange={(e) => setDefaultHubFee(e.target.value)}
+                          placeholder="40"
+                          className="text-xs h-9 bg-white"
+                        />
+                        <p className="text-[10px] text-gray-400">Self pickup fee at authorized delivery hubs</p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-gray-700">Free Delivery Threshold (৳)</Label>
+                        <Input
+                          type="number"
+                          value={freeThreshold}
+                          onChange={(e) => setFreeThreshold(e.target.value)}
+                          placeholder="1500"
+                          className="text-xs h-9 bg-white"
+                        />
+                        <p className="text-[10px] text-gray-400">Orders above this amount get free delivery (0 to disable)</p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-gray-700">In-House Express Fleet Name</Label>
+                        <Input
+                          value={inHouseFleetName}
+                          onChange={(e) => setInHouseFleetName(e.target.value)}
+                          placeholder="e.g. ShopZilla In-House Express Fleet"
+                          className="text-xs h-9 bg-white"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-gray-700">Customer Care Helpline</Label>
+                        <Input
+                          value={customerCareHotline}
+                          onChange={(e) => setCustomerCareHotline(e.target.value)}
+                          placeholder="+880 9612-345678"
+                          className="text-xs h-9 bg-white"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-gray-700">Guaranteed Delivery Duration</Label>
+                        <Input
+                          value={deliveryEstimatedDays}
+                          onChange={(e) => setDeliveryEstimatedDays(e.target.value)}
+                          placeholder="e.g. Guaranteed within 1-2 days"
+                          className="text-xs h-9 bg-white"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-gray-700">Default Return Policy</Label>
+                        <Input
+                          value={defaultReturnPolicy}
+                          onChange={(e) => setDefaultReturnPolicy(e.target.value)}
+                          placeholder="e.g. 14 days easy return"
+                          className="text-xs h-9 bg-white"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-gray-700">Authenticity Badge Text</Label>
+                        <Input
+                          value={authenticText}
+                          onChange={(e) => setAuthenticText(e.target.value)}
+                          placeholder="e.g. 100% Authentic Product"
+                          className="text-xs h-9 bg-white"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="space-y-0.5">
+                          <Label className="text-xs font-semibold text-gray-700">Cash on Delivery (COD)</Label>
+                          <p className="text-[11px] text-gray-400">Allow customers to pay cash upon package receipt</p>
+                        </div>
+                        <Switch
+                          checked={deliveryCod}
+                          onCheckedChange={setDeliveryCod}
+                          className="data-[state=checked]:bg-sky-600"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="space-y-0.5">
+                          <Label className="text-xs font-semibold text-gray-700">Change of Mind Applicable</Label>
+                          <p className="text-[11px] text-gray-400">Permit returns for change of mind on unopened goods</p>
+                        </div>
+                        <Switch
+                          checked={changeOfMindApplicable}
+                          onCheckedChange={setChangeOfMindApplicable}
+                          className="data-[state=checked]:bg-sky-600"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 pt-2 justify-end border-t border-gray-100">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleSaveDeliveryConfig}
+                        disabled={deliveryConfigLoading}
+                        className="text-xs h-8 bg-sky-600 hover:bg-sky-700 text-white font-semibold"
+                      >
+                        {deliveryConfigLoading ? 'Saving...' : 'Save Fleet & Global Policies'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </Card>
+
+              {/* Add / Edit Location Dialog */}
+              <Dialog open={locModalOpen} onOpenChange={setLocModalOpen}>
+                <DialogContent className="sm:max-w-[480px]">
+                  <DialogHeader>
+                    <DialogTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-sky-600" />
+                      {editingLocId ? 'Edit Delivery Location & Rates' : 'Add New Delivery Location'}
+                    </DialogTitle>
+                    <DialogDescription className="text-xs text-gray-500">
+                      Configure city or area specific delivery charges, in-house fleet coverage, and turnaround.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-3 py-2 text-xs">
+                    <div>
+                      <Label className="text-xs">Location Name (City / Area) *</Label>
+                      <Input
+                        value={locName}
+                        onChange={(e) => setLocName(e.target.value)}
+                        placeholder="e.g. Dhaka City, Gazipur, Cumilla City"
+                        className="text-xs h-8 mt-1"
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Division *</Label>
+                      <select
+                        value={locDivision}
+                        onChange={(e) => setLocDivision(e.target.value)}
+                        className="w-full text-xs h-8 px-2.5 bg-white border border-gray-300 rounded mt-1"
+                      >
+                        {['Dhaka', 'Chittagong', 'Sylhet', 'Rajshahi', 'Khulna', 'Barisal', 'Rangpur', 'Mymensingh', 'Nationwide'].map(
+                          (div) => (
+                            <option key={div} value={div}>
+                              {div} Division
+                            </option>
+                          )
+                        )}
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs">Home Delivery Fee (৳) *</Label>
+                        <Input
+                          type="number"
+                          value={locHomeCharge}
+                          onChange={(e) => setLocHomeCharge(e.target.value)}
+                          placeholder="90"
+                          className="text-xs h-8 mt-1 font-bold text-sky-700"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Hub Delivery Fee (৳) *</Label>
+                        <Input
+                          type="number"
+                          value={locHubCharge}
+                          onChange={(e) => setLocHubCharge(e.target.value)}
+                          placeholder="40"
+                          className="text-xs h-8 mt-1 font-bold text-emerald-700"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs">Home Delivery SLA</Label>
+                        <Input
+                          value={locEstHome}
+                          onChange={(e) => setLocEstHome(e.target.value)}
+                          placeholder="1-2 Days (In-House Fleet)"
+                          className="text-xs h-8 mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Hub Pickup SLA</Label>
+                        <Input
+                          value={locEstHub}
+                          onChange={(e) => setLocEstHub(e.target.value)}
+                          placeholder="1-2 Days"
+                          className="text-xs h-8 mt-1"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 pt-1 border-t border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-gray-700">In-House Delivery Fleet Available</span>
+                        <Switch checked={locInHouse} onCheckedChange={setLocInHouse} className="data-[state=checked]:bg-sky-600 scale-90" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-gray-700">Delivery Hub Pickup Available</span>
+                        <Switch checked={locHubAvailable} onCheckedChange={setLocHubAvailable} className="data-[state=checked]:bg-emerald-600 scale-90" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-gray-700">Cash on Delivery (COD)</span>
+                        <Switch checked={locCod} onCheckedChange={setLocCod} className="data-[state=checked]:bg-sky-600 scale-90" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-gray-700">Location Active</span>
+                        <Switch checked={locActive} onCheckedChange={setLocActive} className="data-[state=checked]:bg-sky-600 scale-90" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <DialogFooter className="flex justify-end gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setLocModalOpen(false)} className="text-xs">
+                      Cancel
+                    </Button>
+                    <Button size="sm" onClick={handleSaveLocationModal} className="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold">
+                      Save Location
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* Add / Edit Hub Dialog */}
+              <Dialog open={hubModalOpen} onOpenChange={setHubModalOpen}>
+                <DialogContent className="sm:max-w-[480px]">
+                  <DialogHeader>
+                    <DialogTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
+                      <Store className="h-4 w-4 text-emerald-600" />
+                      {editingHubId ? 'Edit Delivery Hub' : 'Add New Delivery Hub'}
+                    </DialogTitle>
+                    <DialogDescription className="text-xs text-gray-500">
+                      Configure pickup center address, operating hours, and manager contact.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-3 py-2 text-xs">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs">Hub Name *</Label>
+                        <Input
+                          value={hubName}
+                          onChange={(e) => setHubName(e.target.value)}
+                          placeholder="e.g. Banani Central Hub"
+                          className="text-xs h-8 mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Hub Code *</Label>
+                        <Input
+                          value={hubCode}
+                          onChange={(e) => setHubCode(e.target.value)}
+                          placeholder="HUB-DHK-BANANI"
+                          className="text-xs h-8 mt-1 font-mono uppercase"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs">Assigned Location</Label>
+                        <select
+                          value={hubLocationName}
+                          onChange={(e) => setHubLocationName(e.target.value)}
+                          className="w-full text-xs h-8 px-2.5 bg-white border border-gray-300 rounded mt-1"
+                        >
+                          {deliveryLocationsList.map((loc) => (
+                            <option key={loc.id} value={loc.name}>
+                              {loc.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Division</Label>
+                        <select
+                          value={hubDivision}
+                          onChange={(e) => setHubDivision(e.target.value)}
+                          className="w-full text-xs h-8 px-2.5 bg-white border border-gray-300 rounded mt-1"
+                        >
+                          {['Dhaka', 'Chittagong', 'Sylhet', 'Rajshahi', 'Khulna', 'Barisal', 'Rangpur', 'Mymensingh', 'Nationwide'].map(
+                            (div) => (
+                              <option key={div} value={div}>
+                                {div}
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Full Address *</Label>
+                      <Input
+                        value={hubAddress}
+                        onChange={(e) => setHubAddress(e.target.value)}
+                        placeholder="House, Road, Block, Landmark"
+                        className="text-xs h-8 mt-1"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs">Helpline / Phone *</Label>
+                        <Input
+                          value={hubPhone}
+                          onChange={(e) => setHubPhone(e.target.value)}
+                          placeholder="+880 1711-000000"
+                          className="text-xs h-8 mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Manager Name</Label>
+                        <Input
+                          value={hubManager}
+                          onChange={(e) => setHubManager(e.target.value)}
+                          placeholder="e.g. Arif Hossain"
+                          className="text-xs h-8 mt-1"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs">Operating Hours</Label>
+                        <Input
+                          value={hubHours}
+                          onChange={(e) => setHubHours(e.target.value)}
+                          placeholder="9:00 AM - 8:30 PM (Sat - Thu)"
+                          className="text-xs h-8 mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Pickup Fee (৳)</Label>
+                        <Input
+                          type="number"
+                          value={hubFee}
+                          onChange={(e) => setHubFee(e.target.value)}
+                          placeholder="40"
+                          className="text-xs h-8 mt-1 font-bold text-emerald-700"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1 border-t border-gray-200">
+                      <span className="text-xs font-medium text-gray-700">Hub Active &amp; Ready for Pickups</span>
+                      <Switch checked={hubActive} onCheckedChange={setHubActive} className="data-[state=checked]:bg-emerald-600 scale-90" />
+                    </div>
+                  </div>
+
+                  <DialogFooter className="flex justify-end gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setHubModalOpen(false)} className="text-xs">
+                      Cancel
+                    </Button>
+                    <Button size="sm" onClick={handleSaveHubModal} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">
+                      Save Hub
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
           )}
 
           {/* ========================================================= */}
@@ -2597,6 +3992,259 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
               </Card>
             )
           })()}
+
+          {/* ========================================================= */}
+          {/* PAGE 9: TOP BAR & HEADER CONFIGURATION (Admin only)       */}
+          {/* ========================================================= */}
+          {activeMenu === 'topbar-config' && user.role === 'ADMIN' && (
+            <Card className="p-5 border-gray-200 shadow-xs space-y-6">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-gray-100 flex-wrap gap-2">
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                    <Navigation className="h-5 w-5 text-sky-600" />
+                    Top Bar &amp; Header Configuration
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Customize announcements, helpline numbers, tracking links, and category sub-bar promo badges.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-gray-700">Enable Top Bar</span>
+                  <Switch
+                    checked={topbarEnabled}
+                    onCheckedChange={setTopbarEnabled}
+                  />
+                </div>
+              </div>
+
+              {/* Live Preview Box */}
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
+                  <Eye className="h-3.5 w-3.5 text-sky-600" /> Live Header Preview
+                </Label>
+                <div className="border border-gray-200 rounded-lg overflow-hidden shadow-2xs">
+                  {/* Top Bar Preview */}
+                  {topbarEnabled ? (
+                    <div className="bg-sky-700 text-white text-[11px] font-medium px-4 py-2 flex items-center justify-between transition-colors">
+                      <div className="flex items-center gap-3 truncate">
+                        <span className="truncate">{topbarPromoText || 'No announcement set'}</span>
+                      </div>
+                      <div className="flex items-center gap-4 text-sky-100 shrink-0 text-[11px]">
+                        {topbarShowContactPhone && topbarContactPhone && (
+                          <span className="flex items-center gap-1">📞 {topbarContactPhone}</span>
+                        )}
+                        {topbarShowTrackOrder && (
+                          <span className="underline decoration-sky-300 cursor-pointer">
+                            {topbarTrackOrderText || 'Track My Order'}
+                          </span>
+                        )}
+                        {topbarShowHelp && (
+                          <span className="cursor-pointer">
+                            {topbarHelpText || 'Help & Customer Care'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-100 text-gray-400 text-xs py-2 text-center italic">
+                      Top bar is currently hidden/disabled
+                    </div>
+                  )}
+
+                  {/* Sub-bar Badges Preview */}
+                  <div className="bg-white border-t border-gray-100 px-4 py-2 flex items-center justify-between text-[11px] text-gray-500">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-gray-800">Department Menus</span>
+                      <span className="text-gray-300">•</span>
+                      <span className="text-gray-400">Electronics, Fashion, Home...</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sky-700 font-bold shrink-0">
+                      {topbarShowFlashSaleBadge && (
+                        <span className="flex items-center gap-1 bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded">
+                          {topbarSubBarFlashText || '🔥 Flash Sale'}
+                        </span>
+                      )}
+                      {topbarShowFlashSaleBadge && topbarShowFreeDeliveryBadge && (
+                        <span className="text-gray-300">|</span>
+                      )}
+                      {topbarShowFreeDeliveryBadge && (
+                        <span className="text-gray-500 font-normal">
+                          {topbarSubBarFreeDeliveryText || '🚚 Free Delivery Over ৳1,000'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Controls Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                {/* Column 1: Announcement & Promo Text */}
+                <div className="space-y-4">
+                  <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider pb-1 border-b border-gray-100">
+                    📢 Announcement Texts
+                  </h4>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Desktop Announcement / Promo Text</Label>
+                    <Input
+                      value={topbarPromoText}
+                      onChange={(e) => setTopbarPromoText(e.target.value)}
+                      placeholder="e.g. Save more with our App — Download now! 📱"
+                      className="text-xs h-9"
+                    />
+                    <p className="text-[11px] text-gray-400">Shown on the left side of the top bar on desktop screens.</p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Mobile Announcement Text</Label>
+                    <Input
+                      value={topbarPromoTextMobile}
+                      onChange={(e) => setTopbarPromoTextMobile(e.target.value)}
+                      placeholder="e.g. 🎉 Welcome to ShopZilla"
+                      className="text-xs h-9"
+                    />
+                    <p className="text-[11px] text-gray-400">Compact text displayed on smartphone viewports.</p>
+                  </div>
+
+                  <div className="pt-2">
+                    <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider pb-1 border-b border-gray-100">
+                      🏷️ Category Sub-Bar Badges
+                    </h4>
+                  </div>
+
+                  <div className="space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold text-gray-800">Flash Sale Badge</Label>
+                      <Switch
+                        checked={topbarShowFlashSaleBadge}
+                        onCheckedChange={setTopbarShowFlashSaleBadge}
+                      />
+                    </div>
+                    <Input
+                      value={topbarSubBarFlashText}
+                      onChange={(e) => setTopbarSubBarFlashText(e.target.value)}
+                      placeholder="🔥 Flash Sale"
+                      className="text-xs h-8 bg-white"
+                      disabled={!topbarShowFlashSaleBadge}
+                    />
+                  </div>
+
+                  <div className="space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold text-gray-800">Free Delivery Notice</Label>
+                      <Switch
+                        checked={topbarShowFreeDeliveryBadge}
+                        onCheckedChange={setTopbarShowFreeDeliveryBadge}
+                      />
+                    </div>
+                    <Input
+                      value={topbarSubBarFreeDeliveryText}
+                      onChange={(e) => setTopbarSubBarFreeDeliveryText(e.target.value)}
+                      placeholder="🚚 Free Delivery Over ৳1,000"
+                      className="text-xs h-8 bg-white"
+                      disabled={!topbarShowFreeDeliveryBadge}
+                    />
+                  </div>
+                </div>
+
+                {/* Column 2: Right Utility Links & Contact */}
+                <div className="space-y-4">
+                  <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider pb-1 border-b border-gray-100">
+                    🔗 Utility Links &amp; Customer Helpline
+                  </h4>
+
+                  {/* Contact Phone */}
+                  <div className="space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold text-gray-800">Helpline / Contact Phone</Label>
+                      <Switch
+                        checked={topbarShowContactPhone}
+                        onCheckedChange={setTopbarShowContactPhone}
+                      />
+                    </div>
+                    <Input
+                      value={topbarContactPhone}
+                      onChange={(e) => setTopbarContactPhone(e.target.value)}
+                      placeholder="+880 9678 123 456"
+                      className="text-xs h-8 bg-white"
+                      disabled={!topbarShowContactPhone}
+                    />
+                    <p className="text-[11px] text-gray-400">Direct helpline shown to shoppers in the top bar.</p>
+                  </div>
+
+                  {/* Track My Order */}
+                  <div className="space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold text-gray-800">Order Tracking Link</Label>
+                      <Switch
+                        checked={topbarShowTrackOrder}
+                        onCheckedChange={setTopbarShowTrackOrder}
+                      />
+                    </div>
+                    <Input
+                      value={topbarTrackOrderText}
+                      onChange={(e) => setTopbarTrackOrderText(e.target.value)}
+                      placeholder="Track My Order"
+                      className="text-xs h-8 bg-white"
+                      disabled={!topbarShowTrackOrder}
+                    />
+                    <p className="text-[11px] text-gray-400">Opens user dashboard or login prompt for tracking status.</p>
+                  </div>
+
+                  {/* Help & Customer Care */}
+                  <div className="space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold text-gray-800">Customer Care &amp; Help Link</Label>
+                      <Switch
+                        checked={topbarShowHelp}
+                        onCheckedChange={setTopbarShowHelp}
+                      />
+                    </div>
+                    <Input
+                      value={topbarHelpText}
+                      onChange={(e) => setTopbarHelpText(e.target.value)}
+                      placeholder="Help & Customer Care"
+                      className="text-xs h-8 bg-white"
+                      disabled={!topbarShowHelp}
+                    />
+                    <p className="text-[11px] text-gray-400">Help center text in the top right menu.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions Footer */}
+              <div className="flex items-center justify-between pt-4 border-t border-gray-100 flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResetTopbarDefaults}
+                  className="text-xs h-8 text-gray-600 hover:text-gray-900 border-gray-200"
+                >
+                  <RotateCcw className="h-3.5 w-3.5 mr-1" /> Reset to Defaults
+                </Button>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleSaveTopbarConfig}
+                  disabled={topbarSaving}
+                  className="text-xs h-8 bg-sky-600 hover:bg-sky-700 text-white font-semibold px-5"
+                >
+                  {topbarSaving ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Top Bar Settings'
+                  )}
+                </Button>
+              </div>
+            </Card>
+          )}
         </main>
       </div>
 

@@ -46,6 +46,10 @@ export function ProductDetailView() {
   const setUser = useStore((s) => s.setUser)
   const openAuth = useStore((s) => s.openAuth)
   const refreshCart = useStore((s) => s.refreshCart)
+  const siteConfig = useStore((s) => s.siteConfig)
+  const fetchSiteConfig = useStore((s) => s.fetchSiteConfig)
+  const getCachedProduct = useStore((s) => s.getCachedProduct)
+  const setCachedProduct = useStore((s) => s.setCachedProduct)
 
   const [product, setProduct] = useState<ProductFE | null>(null)
   const [related, setRelated] = useState<ProductFE[]>([])
@@ -74,6 +78,8 @@ export function ProductDetailView() {
   const [deliveryConfig, setDeliveryConfig] = useState<{
     defaultAddress?: string
     standardFee?: number
+    defaultHomeDeliveryFee?: number
+    defaultHubDeliveryFee?: number
     estimatedDays?: string
     codAvailable?: boolean
     returnPolicyDefault?: string
@@ -96,15 +102,17 @@ export function ProductDetailView() {
   }
 
   useEffect(() => {
-    fetch('/api/config')
-      .then((r) => r.json())
-      .then((d) => {
-        if (d?.promoBanner) setPromoBanner(d.promoBanner)
-        else setPromoBanner(null)
-        if (d?.deliveryConfig) setDeliveryConfig(d.deliveryConfig)
-      })
-      .catch(() => {})
-  }, [])
+    // Use globally cached config instead of fetching on every product view
+    fetchSiteConfig()
+  }, [fetchSiteConfig])
+
+  // Sync promo banner and delivery config from global store
+  useEffect(() => {
+    if (siteConfig) {
+      setPromoBanner(siteConfig.promoBanner)
+      if (siteConfig.deliveryConfig) setDeliveryConfig(siteConfig.deliveryConfig)
+    }
+  }, [siteConfig])
 
   useEffect(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem('user_delivery_location') : null
@@ -115,6 +123,32 @@ export function ProductDetailView() {
   useEffect(() => {
     if (!productId) return
     let cancelled = false
+
+    // Check client-side cache first — instant load for already-viewed products
+    const cached = getCachedProduct(productId)
+    if (cached) {
+      setActiveImage(0)
+      setQty(1)
+      setProduct(cached.product)
+      setRelated(cached.related)
+      setReviews(cached.product.reviews || [])
+      setLoading(false)
+      recordProductView(cached.product.id, cached.product.categoryId, cached.product.brand)
+      // Refresh in background for freshness (non-blocking)
+      fetch(`/api/products/${productId}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled || !data.product) return
+          setProduct(data.product)
+          setRelated(data.related || [])
+          setReviews(data.product.reviews || [])
+          setCachedProduct(productId, data.product, data.related || [])
+        })
+        .catch(() => {})
+      return () => { cancelled = true }
+    }
+
+    // No cache — fetch from server (first-time view)
     void (async () => {
       setLoading(true)
       try {
@@ -126,6 +160,7 @@ export function ProductDetailView() {
           setProduct(data.product)
           setRelated(data.related || [])
           setReviews(data.product.reviews || [])
+          setCachedProduct(productId, data.product, data.related || [])
           recordProductView(data.product.id, data.product.categoryId, data.product.brand)
         }
       } finally {
@@ -135,7 +170,7 @@ export function ProductDetailView() {
     return () => {
       cancelled = true
     }
-  }, [productId])
+  }, [productId, getCachedProduct, setCachedProduct])
 
   const addToCart = async () => {
     if (!user) return openAuth('login')
@@ -714,19 +749,37 @@ export function ProductDetailView() {
                 </button>
               </div>
 
-              <div className="border-t border-gray-200/60 pt-2 flex items-start justify-between">
-                <div className="flex items-start gap-1.5 text-gray-700">
-                  <Truck className="h-3.5 w-3.5 text-gray-500 shrink-0 mt-0.5" />
-                  <div>
-                    <div className="font-semibold text-gray-800">Standard Delivery</div>
-                    <div className="text-[11px] text-gray-500">
-                      {deliveryConfig?.estimatedDays || 'Guaranteed within 2-3 days'}
+              {/* Delivery Channels Breakdown */}
+              <div className="border-t border-gray-200/60 pt-2 space-y-1.5">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-1.5 text-gray-700">
+                    <Truck className="h-3.5 w-3.5 text-sky-600 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="font-semibold text-gray-800">Home Delivery</div>
+                      <div className="text-[11px] text-gray-500">
+                        {deliveryConfig?.estimatedDays || 'Guaranteed within 1-2 days'}
+                      </div>
                     </div>
                   </div>
+                  <span className="font-bold text-gray-900">
+                    ৳ {deliveryConfig?.standardFee !== undefined ? deliveryConfig.standardFee : 90}
+                  </span>
                 </div>
-                <span className="font-bold text-gray-900">
-                  ৳ {deliveryConfig?.standardFee !== undefined ? deliveryConfig.standardFee : 90}
-                </span>
+
+                <div className="flex items-start justify-between pt-1 border-t border-dashed border-gray-200">
+                  <div className="flex items-start gap-1.5 text-gray-700">
+                    <Store className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="font-semibold text-gray-800">Delivery Hub Pickup</div>
+                      <div className="text-[11px] text-emerald-700 font-medium">
+                        Collect from authorized Hub
+                      </div>
+                    </div>
+                  </div>
+                  <span className="font-bold text-emerald-600">
+                    ৳ {deliveryConfig?.defaultHubDeliveryFee !== undefined ? deliveryConfig.defaultHubDeliveryFee : 40}
+                  </span>
+                </div>
               </div>
 
               <div className="border-t border-gray-200/60 pt-2 flex items-center gap-1.5 text-gray-700">

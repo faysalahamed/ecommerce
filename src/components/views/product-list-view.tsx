@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ProductCard, type ProductFE } from '@/components/ecommerce/product-card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Loader2, ArrowDown, CheckCircle2 } from 'lucide-react'
+import { Loader2, ArrowDown, CheckCircle2, Flame, TrendingUp, Zap } from 'lucide-react'
 
 const PAGE_SIZE = 24 // Scalable batch size for 100k+ products
 
@@ -29,8 +29,14 @@ export function ProductListView({ initialQuery }: { initialQuery?: string }) {
   const categoryName = view.name === 'category' ? view.categoryName : undefined
   const brand = view.name === 'brand' ? view.brand : undefined
   const query = view.name === 'search' ? view.query : initialQuery
+  const isFlash = view.name === 'flash-sale'
+  const isFeatured = view.name === 'featured'
 
-  const title = categoryName || (brand ? `Brand: ${brand}` : (query ? `Search: "${query}"` : 'All Products'))
+  const title = isFlash
+    ? 'Flash Sale Deals'
+    : isFeatured
+    ? 'Featured Products'
+    : categoryName || (brand ? `Brand: ${brand}` : (query ? `Search: "${query}"` : 'All Products'))
 
   // Reset and load page 1 whenever filters or sort change
   useEffect(() => {
@@ -48,6 +54,8 @@ export function ProductListView({ initialQuery }: { initialQuery?: string }) {
       if (categoryId) params.set('categoryId', categoryId)
       if (brand) params.set('brand', brand)
       if (query) params.set('search', query)
+      if (isFlash) params.set('flash', 'true')
+      if (isFeatured) params.set('featured', 'true')
 
       try {
         const res = await fetch('/api/products?' + params.toString())
@@ -66,7 +74,7 @@ export function ProductListView({ initialQuery }: { initialQuery?: string }) {
     return () => {
       cancelled = true
     }
-  }, [categoryId, brand, query, sort])
+  }, [categoryId, brand, query, isFlash, isFeatured, sort])
 
   // Load next page (lazy loading / infinite scrolling)
   const loadNextPage = useCallback(async () => {
@@ -82,6 +90,8 @@ export function ProductListView({ initialQuery }: { initialQuery?: string }) {
     if (categoryId) params.set('categoryId', categoryId)
     if (brand) params.set('brand', brand)
     if (query) params.set('search', query)
+    if (isFlash) params.set('flash', 'true')
+    if (isFeatured) params.set('featured', 'true')
 
     try {
       const res = await fetch('/api/products?' + params.toString())
@@ -100,7 +110,7 @@ export function ProductListView({ initialQuery }: { initialQuery?: string }) {
     } finally {
       setLoadingMore(false)
     }
-  }, [loading, loadingMore, hasMore, page, sort, categoryId, brand, query, total])
+  }, [loading, loadingMore, hasMore, page, sort, categoryId, brand, query, isFlash, isFeatured, total])
 
   // Automatic infinite scroll trigger via IntersectionObserver
   useEffect(() => {
@@ -126,15 +136,19 @@ export function ProductListView({ initialQuery }: { initialQuery?: string }) {
     <div className="container mx-auto px-3 py-6 space-y-4">
       {/* Top Header / Breadcrumb / Sorter */}
       <div className="flex items-center justify-between flex-wrap gap-3 pb-2 border-b border-gray-100">
-        <div>
+        <div className="flex items-center gap-1.5 flex-wrap">
           <button
             onClick={() => navigate({ name: 'home' })}
-            className="text-xs sm:text-sm text-gray-500 hover:text-sky-600"
+            className="text-xs sm:text-sm text-gray-500 hover:text-sky-600 transition"
           >
             Home /
           </button>
-          <h1 className="text-lg sm:text-xl font-bold text-gray-900 inline-block ml-2">{title}</h1>
-          <span className="text-xs text-gray-400 ml-2">
+          <div className="flex items-center gap-2">
+            {isFlash && <Flame className="h-5 w-5 text-red-500 fill-red-500 shrink-0" />}
+            {isFeatured && <TrendingUp className="h-5 w-5 text-sky-600 shrink-0" />}
+            <h1 className="text-lg sm:text-xl font-bold text-gray-900 inline-block">{title}</h1>
+          </div>
+          <span className="text-xs text-gray-400 ml-1">
             ({total > 0 ? `${total} products` : '0 products'})
           </span>
         </div>
@@ -159,6 +173,42 @@ export function ProductListView({ initialQuery }: { initialQuery?: string }) {
           </Select>
         </div>
       </div>
+
+      {/* Flash Sale Banner */}
+      {isFlash && (
+        <div className="bg-gradient-to-r from-red-600 via-rose-500 to-amber-500 text-white p-4 sm:p-5 rounded-xl shadow-xs flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-white/20 rounded-lg backdrop-blur-xs">
+              <Zap className="h-6 w-6 text-yellow-200 fill-yellow-200" />
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-black tracking-wide">FLASH SALE MEGA DEALS</h2>
+              <p className="text-xs text-white/90">Exclusive limited-time price drops on top-selling items. Grab them before stock runs out!</p>
+            </div>
+          </div>
+          <span className="text-[11px] font-bold bg-black/25 px-3 py-1 rounded-full uppercase tracking-wider">
+            Up to 70% Off
+          </span>
+        </div>
+      )}
+
+      {/* Featured Products Banner */}
+      {isFeatured && (
+        <div className="bg-gradient-to-r from-sky-600 via-cyan-600 to-indigo-600 text-white p-4 sm:p-5 rounded-xl shadow-xs flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-white/20 rounded-lg backdrop-blur-xs">
+              <TrendingUp className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-black tracking-wide">CURATED FEATURED COLLECTION</h2>
+              <p className="text-xs text-white/90">Hand-picked bestsellers and trending essentials curated specially for our shoppers.</p>
+            </div>
+          </div>
+          <span className="text-[11px] font-bold bg-white/20 px-3 py-1 rounded-full uppercase tracking-wider">
+            Handpicked
+          </span>
+        </div>
+      )}
 
       {/* Initial Page Loading Skeletons */}
       {loading ? (

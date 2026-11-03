@@ -18,25 +18,24 @@ const AUTOPLAY_MS = 5000 // 5 seconds per slide
 
 export function HeroSlider() {
   const navigate = useStore((s) => s.navigate)
+  const siteConfig = useStore((s) => s.siteConfig)
+  const fetchSiteConfig = useStore((s) => s.fetchSiteConfig)
   const [slides, setSlides] = useState<HeroSlide[]>(HERO_SLIDES)
   const [api, setApi] = useState<CarouselApi>()
   const [current, setCurrent] = useState(0)
   const [count, setCount] = useState(0)
 
-  // Fetch dynamic slides from SiteConfig
+  // Use globally cached site config for slides
+  useEffect(() => { fetchSiteConfig() }, [fetchSiteConfig])
+
   useEffect(() => {
-    fetch('/api/config')
-      .then((r) => r.json())
-      .then((d) => {
-        if (d?.heroSlides && Array.isArray(d.heroSlides) && d.heroSlides.length > 0) {
-          const activeSlides = d.heroSlides.filter((s: HeroSlide) => s.active !== false)
-          if (activeSlides.length > 0) {
-            setSlides(activeSlides)
-          }
-        }
-      })
-      .catch(() => {})
-  }, [])
+    if (siteConfig?.heroSlides && Array.isArray(siteConfig.heroSlides) && siteConfig.heroSlides.length > 0) {
+      const activeSlides = siteConfig.heroSlides.filter((s: HeroSlide) => s.active !== false)
+      if (activeSlides.length > 0) {
+        setSlides(activeSlides)
+      }
+    }
+  }, [siteConfig])
 
   // Sync current slide index when carousel scrolls
   useEffect(() => {

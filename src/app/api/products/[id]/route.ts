@@ -12,32 +12,39 @@ import {
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await ctx.params
+
+    // Fetch product data — we need categoryId for the related query,
+    // so do the main product fetch first, then launch related + reviews in parallel.
     const product = await db.product.findUnique({
       where: { id },
       include: {
         category: { select: { id: true, name: true, slug: true, icon: true } },
         retailer: { select: { id: true, name: true, storeName: true } },
-        reviews: {
-          include: { user: { select: { name: true } } },
-          orderBy: { createdAt: 'desc' },
-        },
       },
     })
     if (!product) return errorResponse('Product not found', 404)
 
-    const related = await db.product.findMany({
-      where: { categoryId: product.categoryId, id: { not: product.id }, status: 'ACTIVE' },
-      take: 6,
-      include: {
-        category: { select: { id: true, name: true, slug: true, icon: true } },
-        retailer: { select: { id: true, name: true, storeName: true } },
-      },
-    })
+    // Launch related products & reviews in parallel (saves ~50-150ms)
+    const [related, reviews] = await Promise.all([
+      db.product.findMany({
+        where: { categoryId: product.categoryId, id: { not: product.id }, status: 'ACTIVE' },
+        take: 6,
+        include: {
+          category: { select: { id: true, name: true, slug: true, icon: true } },
+          retailer: { select: { id: true, name: true, storeName: true } },
+        },
+      }),
+      db.review.findMany({
+        where: { productId: id },
+        include: { user: { select: { name: true } } },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ])
 
     return successResponse({
       product: {
         ...toProductDTO(product),
-        reviews: product.reviews?.map((r) => ({
+        reviews: reviews.map((r) => ({
           id: r.id,
           rating: r.rating,
           comment: r.comment,

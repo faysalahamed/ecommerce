@@ -1,4 +1,16 @@
 import { create } from 'zustand'
+import {
+  DEFAULT_DELIVERY_CONFIG,
+  DEFAULT_DELIVERY_LOCATIONS,
+  DEFAULT_DELIVERY_HUBS,
+  type DeliveryConfig,
+  type DeliveryLocation,
+  type DeliveryHub,
+} from '@/lib/delivery'
+import {
+  DEFAULT_TOPBAR_CONFIG,
+  type TopbarConfig,
+} from '@/lib/topbar'
 
 export type View =
   | { name: 'home' }
@@ -6,6 +18,8 @@ export type View =
   | { name: 'category'; categoryId: string; categoryName?: string }
   | { name: 'brand'; brand: string }
   | { name: 'search'; query: string }
+  | { name: 'flash-sale' }
+  | { name: 'featured' }
   | { name: 'cart' }
   | { name: 'checkout' }
   | { name: 'order-success'; orderId: string }
@@ -60,6 +74,27 @@ interface StoreState {
 
   searchQuery: string
   setSearchQuery: (q: string) => void
+
+  // Cached site config (shared across all views)
+  siteConfig: {
+    promoBanner: { title: string; tag?: string } | null
+    deliveryConfig: DeliveryConfig
+    deliveryLocations: DeliveryLocation[]
+    deliveryHubs: DeliveryHub[]
+    heroSlides: any
+    flashSaleConfig: any
+    topbarConfig: TopbarConfig
+    otpEnabled: boolean
+  } | null
+  siteConfigLoading: boolean
+  fetchSiteConfig: (forceRefresh?: boolean) => Promise<void>
+
+  // Product detail cache (avoids re-fetching already viewed products)
+  productCache: Map<string, { product: any; related: any[]; timestamp: number }>
+  getCachedProduct: (id: string) => { product: any; related: any[] } | null
+  setCachedProduct: (id: string, product: any, related: any[]) => void
+  prefetchProduct: (id: string) => void
+  seedProductPreview: (product: any) => void
 }
 
 export const useStore = create<StoreState>((set, get) => ({
@@ -126,6 +161,86 @@ export const useStore = create<StoreState>((set, get) => ({
     set({ searchQuery: q })
     if (q.trim()) {
       get().navigate({ name: 'search', query: q.trim() })
+    }
+  },
+
+  // Site config — fetched once, cached globally
+  siteConfig: null,
+  siteConfigLoading: false,
+  fetchSiteConfig: async (forceRefresh = false) => {
+    // Don't re-fetch if already loaded or loading, unless forceRefresh is true
+    if (!forceRefresh && (get().siteConfig || get().siteConfigLoading)) return
+    set({ siteConfigLoading: true })
+    try {
+      const res = await fetch('/api/config')
+      const data = await res.json()
+      set({
+        siteConfig: {
+          promoBanner: data.promoBanner || null,
+          deliveryConfig: data.deliveryConfig || DEFAULT_DELIVERY_CONFIG,
+          deliveryLocations: data.deliveryLocations || DEFAULT_DELIVERY_LOCATIONS,
+          deliveryHubs: data.deliveryHubs || DEFAULT_DELIVERY_HUBS,
+          heroSlides: data.heroSlides || null,
+          flashSaleConfig: data.flashSaleConfig || null,
+          topbarConfig: data.topbarConfig || DEFAULT_TOPBAR_CONFIG,
+          otpEnabled: data.otpEnabled ?? true,
+        },
+        siteConfigLoading: false,
+      })
+    } catch {
+      set({ siteConfigLoading: false })
+    }
+  },
+
+  // Product detail cache — 5 minute TTL, max 30 products
+  productCache: new Map(),
+  getCachedProduct: (id: string) => {
+    const cache = get().productCache
+    const entry = cache.get(id)
+    if (!entry) return null
+    // Expire after 5 minutes
+    if (Date.now() - entry.timestamp > 5 * 60 * 1000) {
+      cache.delete(id)
+      return null
+    }
+    return { product: entry.product, related: entry.related }
+  },
+  setCachedProduct: (id: string, product: any, related: any[]) => {
+    const cache = new Map(get().productCache)
+    // Evict oldest if cache exceeds 30 entries
+    if (cache.size >= 30) {
+      const oldestKey = cache.keys().next().value
+      if (oldestKey) cache.delete(oldestKey)
+    }
+    cache.set(id, { product, related, timestamp: Date.now() })
+    set({ productCache: cache })
+  },
+
+  // Prefetch product on hover so navigation has 0ms perceived latency
+  prefetchProduct: (id: string) => {
+    if (!id) return
+    const cache = get().productCache
+    const entry = cache.get(id)
+    if (entry && Date.now() - entry.timestamp <= 5 * 60 * 1000) return
+
+    fetch(`/api/products/${id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.product) {
+          get().setCachedProduct(id, data.product, data.related || [])
+        }
+      })
+      .catch(() => {})
+  },
+
+  // Seed product preview with available data from ProductCard so ProductDetailView
+  // renders instantly upon click instead of showing blank skeletons
+  seedProductPreview: (product: any) => {
+    if (!product?.id) return
+    const cache = get().productCache
+    const existing = cache.get(product.id)
+    if (!existing) {
+      get().setCachedProduct(product.id, product, [])
     }
   },
 }))

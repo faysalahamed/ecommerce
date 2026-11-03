@@ -28,8 +28,9 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [seeding, setSeeding] = useState(false)
   const [emptyState, setEmptyState] = useState(false)
+  const fetchSiteConfig = useStore((s) => s.fetchSiteConfig)
 
-  // Initial load: unblock UI quickly with session check; load categories asynchronously in background
+  // Initial load: unblock UI quickly with session check; load categories + site config asynchronously in background
   useEffect(() => {
     let isMounted = true
 
@@ -66,11 +67,13 @@ export default function Home() {
 
     initSession()
     loadCategoriesInBackground()
+    // Pre-fetch site config so it's cached before any product view
+    fetchSiteConfig()
 
     return () => {
       isMounted = false
     }
-  }, [setUser, refreshCart])
+  }, [setUser, refreshCart, fetchSiteConfig])
 
   const handleSeed = async () => {
     setSeeding(true)
@@ -155,6 +158,8 @@ export default function Home() {
         {view.name === 'category' && <ProductListView />}
         {view.name === 'brand' && <ProductListView />}
         {view.name === 'search' && <ProductListView />}
+        {view.name === 'flash-sale' && <ProductListView />}
+        {view.name === 'featured' && <ProductListView />}
         {view.name === 'cart' && <CartView />}
         {view.name === 'checkout' && <CheckoutView />}
         {view.name === 'order-success' && <OrderSuccessView />}

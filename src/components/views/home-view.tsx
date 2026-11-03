@@ -41,6 +41,8 @@ export function HomeView({
   categories: { id: string; name: string; icon: string | null }[]
 }) {
   const navigate = useStore((s) => s.navigate)
+  const siteConfig = useStore((s) => s.siteConfig)
+  const fetchSiteConfig = useStore((s) => s.fetchSiteConfig)
   const [flashSale, setFlashSale] = useState<ProductFE[]>([])
   const [featured, setFeatured] = useState<ProductFE[]>([])
   const [latest, setLatest] = useState<ProductFE[]>([])
@@ -57,6 +59,16 @@ export function HomeView({
     secs: 0,
   })
 
+  // Ensure site config is prefetched
+  useEffect(() => { fetchSiteConfig() }, [fetchSiteConfig])
+
+  // Apply flash sale config from global cache
+  useEffect(() => {
+    if (siteConfig?.flashSaleConfig) {
+      setFlashConfig(siteConfig.flashSaleConfig)
+    }
+  }, [siteConfig])
+
   useEffect(() => {
     let mounted = true
     async function load() {
@@ -69,20 +81,16 @@ export function HomeView({
           clientCategoryIds ? `&categories=${encodeURIComponent(clientCategoryIds)}` : ''
         }${clientBrands ? `&brands=${encodeURIComponent(clientBrands)}` : ''}`
 
-        const [flashRes, featRes, recoRes, cfgRes] = await Promise.all([
+        const [flashRes, featRes, recoRes] = await Promise.all([
           fetch('/api/products?flash=true&limit=12').then((r) => r.json()).catch(() => ({ products: [] })),
           fetch('/api/products?featured=true&limit=12').then((r) => r.json()).catch(() => ({ products: [] })),
           fetch(recoUrl).then((r) => r.json()).catch(() => ({ products: [] })),
-          fetch('/api/config').then((r) => r.json()).catch(() => ({})),
         ])
         if (!mounted) return
         setFlashSale(flashRes.products || [])
         setFeatured(featRes.products || [])
         setLatest(recoRes.products || [])
         setIsPersonalized(Boolean(recoRes.personalized))
-        if (cfgRes?.flashSaleConfig) {
-          setFlashConfig(cfgRes.flashSaleConfig)
-        }
       } finally {
         if (mounted) setLoading(false)
       }
@@ -243,7 +251,7 @@ export function HomeView({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate({ name: 'search', query: 'flash' })}
+              onClick={() => navigate({ name: 'flash-sale' })}
               className="text-xs font-bold text-sky-600 border-sky-600 hover:bg-sky-50 h-8 px-3"
             >
               SHOP MORE <ChevronRight className="h-3 w-3 ml-0.5" />
@@ -275,7 +283,7 @@ export function HomeView({
               <h2 className="text-base sm:text-lg font-bold text-gray-900">Featured Products</h2>
             </div>
             <button
-              onClick={() => navigate({ name: 'search', query: 'featured' })}
+              onClick={() => navigate({ name: 'featured' })}
               className="text-xs font-bold text-sky-600 hover:text-sky-700 hover:underline flex items-center gap-0.5"
             >
               See All <ChevronRight className="h-3 w-3" />

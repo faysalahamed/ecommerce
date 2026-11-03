@@ -37,6 +37,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { BRAND } from '@/lib/brand'
+import { DEFAULT_TOPBAR_CONFIG } from '@/lib/topbar'
 
 const CATEGORY_ICONS: Record<string, string> = {
   laptop: '💻',
@@ -71,7 +72,10 @@ export function Header({ categories }: { categories: CategoryFE[] }) {
     setUser,
     openAuth,
     cartCount,
+    siteConfig,
   } = useStore()
+
+  const topbar = siteConfig?.topbarConfig || DEFAULT_TOPBAR_CONFIG
 
   const [localQuery, setLocalQuery] = useState('')
   const [localCategories, setLocalCategories] = useState(categories || [])
@@ -152,35 +156,43 @@ export function Header({ categories }: { categories: CategoryFE[] }) {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-white shadow-xs">
-      {/* Top utility bar (Daraz style: Save more, help, contact) */}
-      <div className="bg-sky-700 text-white text-[11px] font-medium">
-        <div className="max-w-[1200px] mx-auto px-3 sm:px-4 py-1.5 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <span className="hidden sm:inline opacity-95">{BRAND.promoBarText}</span>
-            <span className="sm:hidden opacity-95">🎉 Welcome to {BRAND.name}</span>
-          </div>
-          <div className="flex items-center gap-4 text-sky-100">
-            <span className="hidden md:inline hover:text-white cursor-pointer transition">
-              📞 {BRAND.contactPhone}
-            </span>
-            <span
-              onClick={() => {
-                if (user) {
-                  navigate({ name: 'dashboard' })
-                } else {
-                  openAuth('login')
-                }
-              }}
-              className="hover:text-white cursor-pointer transition"
-            >
-              Track My Order
-            </span>
-            <span className="hover:text-white cursor-pointer transition hidden sm:inline">
-              Help &amp; Customer Care
-            </span>
+      {/* Top utility bar (Daraz style: Save more, help, contact - Fully Configurable) */}
+      {topbar.enabled && (
+        <div className="bg-sky-700 text-white text-[11px] font-medium">
+          <div className="max-w-[1200px] mx-auto px-3 sm:px-4 py-1.5 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span className="hidden sm:inline opacity-95">{topbar.promoText || BRAND.promoBarText}</span>
+              <span className="sm:hidden opacity-95">{topbar.promoTextMobile || `🎉 Welcome to ${BRAND.name}`}</span>
+            </div>
+            <div className="flex items-center gap-4 text-sky-100">
+              {topbar.showContactPhone && topbar.contactPhone && (
+                <span className="hidden md:inline hover:text-white cursor-pointer transition">
+                  📞 {topbar.contactPhone}
+                </span>
+              )}
+              {topbar.showTrackOrder && (
+                <span
+                  onClick={() => {
+                    if (user) {
+                      navigate({ name: 'dashboard' })
+                    } else {
+                      openAuth('login')
+                    }
+                  }}
+                  className="hover:text-white cursor-pointer transition"
+                >
+                  {topbar.trackOrderText || 'Track My Order'}
+                </span>
+              )}
+              {topbar.showHelp && (
+                <span className="hover:text-white cursor-pointer transition hidden sm:inline">
+                  {topbar.helpText || 'Help & Customer Care'}
+                </span>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Main Header with Centered Search Box */}
       <div className="bg-white">
@@ -471,18 +483,24 @@ export function Header({ categories }: { categories: CategoryFE[] }) {
             </div>
           </div>
 
-          {/* Quick value badges */}
+          {/* Quick value badges (Configurable) */}
           <div className="flex items-center gap-3 text-[11px] font-bold text-sky-700 shrink-0">
-            <span
-              onClick={() => navigate({ name: 'search', query: 'flash' })}
-              className="cursor-pointer hover:underline flex items-center gap-1"
-            >
-              🔥 Flash Sale
-            </span>
-            <span className="text-gray-300">|</span>
-            <span className="hidden lg:inline text-gray-500 font-normal">
-              🚚 Free Delivery Over ৳1,000
-            </span>
+            {topbar.showFlashSaleBadge && (
+              <span
+                onClick={() => navigate({ name: 'flash-sale' })}
+                className="cursor-pointer hover:underline flex items-center gap-1"
+              >
+                {topbar.subBarFlashText || '🔥 Flash Sale'}
+              </span>
+            )}
+            {topbar.showFlashSaleBadge && topbar.showFreeDeliveryBadge && (
+              <span className="text-gray-300">|</span>
+            )}
+            {topbar.showFreeDeliveryBadge && (
+              <span className="hidden lg:inline text-gray-500 font-normal">
+                {topbar.subBarFreeDeliveryText || '🚚 Free Delivery Over ৳1,000'}
+              </span>
+            )}
           </div>
         </div>
       </div>

@@ -162,6 +162,9 @@ model Review {
   rating    Int
   comment   String
   createdAt DateTime @default(now())
+
+  @@index([productId, createdAt])
+  @@index([userId])
 }
 
 model Wishlist {

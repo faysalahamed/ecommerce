@@ -3,12 +3,26 @@ import { isOtpEnabled } from '@/lib/config'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { HERO_SLIDES } from '@/lib/brand'
+import {
+  DEFAULT_DELIVERY_CONFIG,
+  DEFAULT_DELIVERY_LOCATIONS,
+  DEFAULT_DELIVERY_HUBS,
+  type DeliveryConfig,
+  type DeliveryLocation,
+  type DeliveryHub,
+} from '@/lib/delivery'
+import {
+  DEFAULT_TOPBAR_CONFIG,
+  type TopbarConfig,
+} from '@/lib/topbar'
 
 // GET /api/config
-// Returns public site configuration flags, banners, delivery settings, hero slider slides, and parameterized flash sale config
+// Returns public site configuration flags, banners, delivery settings, locations, hubs, hero slider slides, and parameterized flash sale config
 export async function GET() {
   let promoBanner: { title: string; tag?: string } | null = null
-  let deliveryConfig: any = null
+  let deliveryConfig: DeliveryConfig = { ...DEFAULT_DELIVERY_CONFIG }
+  let deliveryLocations: DeliveryLocation[] = [...DEFAULT_DELIVERY_LOCATIONS]
+  let deliveryHubs: DeliveryHub[] = [...DEFAULT_DELIVERY_HUBS]
   let heroSlides: any = null
   let flashSaleConfig: {
     enabled: boolean
@@ -17,10 +31,11 @@ export async function GET() {
     endTime: string
     discountNote?: string
   } | null = null
+  let topbarConfig: TopbarConfig | null = null
 
   try {
     const rows: any = await db.$queryRawUnsafe(
-      `SELECT key, value FROM "SiteConfig" WHERE key IN ('promo_banner', 'delivery_config', 'hero_slides', 'flash_sale_config')`
+      `SELECT key, value FROM "SiteConfig" WHERE key IN ('promo_banner', 'delivery_config', 'delivery_locations', 'delivery_hubs', 'hero_slides', 'flash_sale_config', 'topbar_config')`
     )
     if (rows && rows.length > 0) {
       for (const row of rows) {
@@ -39,7 +54,28 @@ export async function GET() {
         }
         if (row.key === 'delivery_config' && row.value) {
           try {
-            deliveryConfig = JSON.parse(row.value)
+            const parsed = JSON.parse(row.value)
+            deliveryConfig = { ...DEFAULT_DELIVERY_CONFIG, ...parsed }
+          } catch {
+            // fallback
+          }
+        }
+        if (row.key === 'delivery_locations' && row.value) {
+          try {
+            const parsed = JSON.parse(row.value)
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              deliveryLocations = parsed
+            }
+          } catch {
+            // fallback
+          }
+        }
+        if (row.key === 'delivery_hubs' && row.value) {
+          try {
+            const parsed = JSON.parse(row.value)
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              deliveryHubs = parsed
+            }
           } catch {
             // fallback
           }
@@ -70,6 +106,19 @@ export async function GET() {
             // fallback
           }
         }
+        if (row.key === 'topbar_config' && row.value) {
+          try {
+            const parsed = JSON.parse(row.value)
+            if (parsed && typeof parsed === 'object') {
+              topbarConfig = {
+                ...DEFAULT_TOPBAR_CONFIG,
+                ...parsed,
+              }
+            }
+          } catch {
+            // fallback
+          }
+        }
       }
     }
   } catch {
@@ -89,8 +138,11 @@ export async function GET() {
     otpEnabled: isOtpEnabled(),
     promoBanner,
     deliveryConfig,
+    deliveryLocations,
+    deliveryHubs,
     heroSlides: heroSlides || HERO_SLIDES,
     flashSaleConfig: flashSaleConfig || defaultFlashSaleConfig,
+    topbarConfig: topbarConfig || DEFAULT_TOPBAR_CONFIG,
   })
 }
 

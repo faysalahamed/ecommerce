@@ -21,20 +21,22 @@ type Mode = 'login' | 'register' | 'forgot'
 
 export function AuthModal() {
   const { authModal, closeAuth, setUser, refreshCart, navigate } = useStore()
+  const siteConfig = useStore((s) => s.siteConfig)
+  const fetchSiteConfig = useStore((s) => s.fetchSiteConfig)
   const [loading, setLoading] = useState(false)
   const [mode, setMode] = useState<Mode>('login')
 
   // Whether OTP verification is enabled (server-controlled via OTP_ENABLED env var)
   const [otpEnabled, setOtpEnabled] = useState(true)
 
-  // Fetch the OTP-enabled flag from /api/config so the UI matches the server.
-  // When OTP is disabled, registration becomes single-step (no OTP verification).
+  // Use globally cached config for OTP flag
+  useEffect(() => { fetchSiteConfig() }, [fetchSiteConfig])
+
   useEffect(() => {
-    fetch('/api/config')
-      .then((r) => r.json())
-      .then((d) => setOtpEnabled(d.otpEnabled !== false))
-      .catch(() => setOtpEnabled(true)) // default to true if config endpoint fails
-  }, [])
+    if (siteConfig) {
+      setOtpEnabled(siteConfig.otpEnabled !== false)
+    }
+  }, [siteConfig])
 
   // Sync mode with authModal changes
   useEffect(() => {

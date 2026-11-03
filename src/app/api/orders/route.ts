@@ -52,7 +52,17 @@ export async function POST(req: NextRequest) {
       return validationErrorResponse(validation.error)
     }
 
-    const { items, recipientName, phone, address, paymentMethod } = validation.data
+    const {
+      items,
+      recipientName,
+      phone,
+      address,
+      paymentMethod,
+      deliveryChannel = 'HOME_DELIVERY',
+      deliveryLocation,
+      deliveryHubName,
+      shipping: clientShipping,
+    } = validation.data
 
     // Validate products and compute totals
     const productIds = items.map((i) => i.productId)
@@ -82,10 +92,31 @@ export async function POST(req: NextRequest) {
     })
 
     const subtotal = orderItems.reduce((s, i) => s + i.price * i.quantity, 0)
-    const shipping = subtotal >= 1000 ? 0 : 60
+
+    // Calculate shipping based on delivery channel & location
+    let shipping = 90 // default home delivery is 90 BDT
+    if (clientShipping !== undefined && clientShipping >= 0) {
+      shipping = clientShipping
+    } else if (deliveryChannel === 'DELIVERY_HUB') {
+      shipping = 40
+    } else {
+      shipping = 90
+    }
+
+    // Free delivery on orders >= 1500 BDT
+    if (subtotal >= 1500) {
+      shipping = 0
+    }
+
     const total = subtotal + shipping
 
     const orderNumber = 'DZ' + Date.now().toString().slice(-8)
+
+    // Embed structured channel and hub metadata in address string
+    const channelTag = `[Channel: ${deliveryChannel}]`
+    const hubTag = deliveryHubName ? `[Hub: ${deliveryHubName}] ` : ''
+    const locationTag = deliveryLocation ? `[Area: ${deliveryLocation}] ` : ''
+    const formattedAddress = `${channelTag} ${hubTag}${locationTag}${address}`.trim()
 
     // COD orders start as PENDING; online-paid orders start as CONFIRMED
     const order = await db.order.create({
@@ -99,7 +130,7 @@ export async function POST(req: NextRequest) {
         paymentStatus: paymentMethod === 'COD' ? 'UNPAID' : 'PAID',
         paymentMethod,
         paymentRef: paymentMethod !== 'COD' ? 'PAY-' + orderNumber : null,
-        address,
+        address: formattedAddress,
         phone,
         recipientName,
         items: { create: orderItems },
@@ -149,11 +180,39 @@ export async function PUT(req: NextRequest) {
       return validationErrorResponse(validation.error)
     }
 
-    const { orderId, status, paymentStatus } = validation.data
+    const {
+      orderId,
+      status,
+      paymentStatus,
+      deliveryChannel,
+      deliveryLocation,
+      deliveryHubName,
+      shipping: newShipping,
+      address: newAddress,
+    } = validation.data
+
+    const existingOrder = await db.order.findUnique({ where: { id: orderId } })
+    if (!existingOrder) return errorResponse('Order not found', 404)
 
     const data: Prisma.OrderUpdateInput = {}
     if (status) data.status = status
     if (paymentStatus) data.paymentStatus = paymentStatus
+
+    // Update shipping & total if provided
+    if (newShipping !== undefined) {
+      data.shipping = newShipping
+      data.total = Number(existingOrder.subtotal) + Number(newShipping)
+    }
+
+    // Format new address with channel and hub tags if modified
+    if (deliveryChannel || deliveryLocation || deliveryHubName || newAddress) {
+      const channel = deliveryChannel || (existingOrder.address.includes('DELIVERY_HUB') ? 'DELIVERY_HUB' : 'HOME_DELIVERY')
+      const channelTag = `[Channel: ${channel}]`
+      const hubTag = deliveryHubName ? `[Hub: ${deliveryHubName}] ` : ''
+      const locationTag = deliveryLocation ? `[Area: ${deliveryLocation}] ` : ''
+      const rawAddr = newAddress || existingOrder.address.replace(/\[(Channel|Hub|Area):[^\]]+\]/g, '').trim()
+      data.address = `${channelTag} ${hubTag}${locationTag}${rawAddr}`.trim()
+    }
 
     const updated = await db.order.update({
       where: { id: orderId },

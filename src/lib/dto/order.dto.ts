@@ -15,6 +15,10 @@ export const CreateOrderSchema = z.object({
   phone: z.string().min(8, 'Valid phone number is required'),
   address: z.string().min(5, 'Delivery address is required'),
   paymentMethod: z.enum(['COD', 'BKASH', 'NAGAD', 'CARD']).default('COD'),
+  deliveryChannel: z.enum(['HOME_DELIVERY', 'DELIVERY_HUB']).default('HOME_DELIVERY'),
+  deliveryLocation: z.string().optional(),
+  deliveryHubName: z.string().optional(),
+  shipping: z.coerce.number().min(0).optional(),
 })
 
 export type CreateOrderInput = z.infer<typeof CreateOrderSchema>
@@ -23,6 +27,11 @@ export const UpdateOrderSchema = z.object({
   orderId: z.string().min(1, 'Order ID is required'),
   status: z.enum(['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED']).optional(),
   paymentStatus: z.enum(['UNPAID', 'PAID', 'FAILED', 'REFUNDED']).optional(),
+  deliveryChannel: z.enum(['HOME_DELIVERY', 'DELIVERY_HUB']).optional(),
+  deliveryLocation: z.string().optional(),
+  deliveryHubName: z.string().optional(),
+  shipping: z.coerce.number().min(0).optional(),
+  address: z.string().optional(),
 })
 
 export type UpdateOrderInput = z.infer<typeof UpdateOrderSchema>
@@ -60,12 +69,32 @@ export interface OrderDTO {
   recipientName: string
   phone: string
   address: string
+  deliveryChannel?: string
+  deliveryLocation?: string
+  deliveryHubName?: string
   createdAt: string
   items?: OrderItemDTO[]
   user?: OrderUserSummaryDTO
 }
 
 export function toOrderDTO(raw: any): OrderDTO {
+  // Infer or parse delivery channel / hub from address metadata if stored there
+  let deliveryChannel = raw.deliveryChannel || 'HOME_DELIVERY'
+  let deliveryLocation = raw.deliveryLocation || ''
+  let deliveryHubName = raw.deliveryHubName || ''
+
+  if (!raw.deliveryChannel && typeof raw.address === 'string') {
+    if (raw.address.includes('[Channel: DELIVERY_HUB]')) {
+      deliveryChannel = 'DELIVERY_HUB'
+      const match = raw.address.match(/\[Hub:\s*([^\]]+)\]/)
+      if (match) deliveryHubName = match[1].trim()
+    } else if (raw.address.includes('[Channel: HOME_DELIVERY]')) {
+      deliveryChannel = 'HOME_DELIVERY'
+    }
+    const locMatch = raw.address.match(/\[Area:\s*([^\]]+)\]/)
+    if (locMatch) deliveryLocation = locMatch[1].trim()
+  }
+
   return {
     id: raw.id,
     orderNumber: raw.orderNumber,
@@ -79,6 +108,9 @@ export function toOrderDTO(raw: any): OrderDTO {
     recipientName: raw.recipientName,
     phone: raw.phone,
     address: raw.address,
+    deliveryChannel,
+    deliveryLocation: deliveryLocation || undefined,
+    deliveryHubName: deliveryHubName || undefined,
     createdAt: new Date(raw.createdAt).toISOString(),
     items: raw.items?.map((it: any) => ({
       id: it.id,
