@@ -73,7 +73,7 @@ import {
 import { toast } from 'sonner'
 import { formatBDT } from '@/lib/format'
 import { useStore as useZustandStore } from '@/lib/store'
-import { DarazProductForm } from '@/components/ecommerce/daraz-product-form'
+import { ProductFormView } from '@/components/views/product-form-view'
 import { HERO_SLIDES, type HeroSlide } from '@/lib/brand'
 import {
   DEFAULT_DELIVERY_CONFIG,
@@ -1193,6 +1193,25 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
           Login
         </Button>
       </div>
+    )
+  }
+
+  // When creating or editing a product, render the dedicated full Product Input Page instead of a cramped modal dialog
+  if (formOpen) {
+    return (
+      <ProductFormView
+        initialProduct={editingProduct}
+        categories={categoryList}
+        onCancel={() => {
+          setFormOpen(false)
+          setEditingProduct(null)
+        }}
+        onSuccess={() => {
+          setFormOpen(false)
+          setEditingProduct(null)
+          fetchAll()
+        }}
+      />
     )
   }
 
@@ -4593,15 +4612,6 @@ export function DashboardView({ categories }: { categories: { id: string; name: 
           </form>
         </DialogContent>
       </Dialog>
-
-      {/* Daraz Seller Center Product Input Form */}
-      <DarazProductForm
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        product={editingProduct}
-        categories={categoryList}
-        onSuccess={fetchAll}
-      />
     </div>
   )
 }

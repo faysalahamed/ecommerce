@@ -13,6 +13,8 @@ import { CheckoutView } from '@/components/views/checkout-view'
 import { OrderSuccessView } from '@/components/views/order-success-view'
 import { WishlistView } from '@/components/views/wishlist-view'
 import { DashboardView } from '@/components/views/dashboard-view'
+import { LoginView } from '@/components/views/login-view'
+import { ProductFormView } from '@/components/views/product-form-view'
 import { Button } from '@/components/ui/button'
 import { Database, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -154,6 +156,9 @@ export default function Home() {
       <Header categories={categories} />
       <main className="flex-1">
         {view.name === 'home' && <HomeView categories={categories} />}
+        {view.name === 'login' && <LoginView initialMode="login" />}
+        {view.name === 'register' && <LoginView initialMode="register" />}
+        {view.name === 'product-form' && <ProductFormView productId={view.productId} categories={categories} />}
         {view.name === 'product' && <ProductDetailView />}
         {view.name === 'category' && <ProductListView />}
         {view.name === 'brand' && <ProductListView />}

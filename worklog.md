@@ -912,3 +912,74 @@ Work Log:
   - "Reset to Defaults" button and "Save Top Bar Settings" with instant global refresh (`fetchSiteConfig(true)`).
 - Verified TypeScript compilation: 0 errors.
 - Dev server running on `http://localhost:3000`.
+
+---
+Task ID: 22
+Agent: Super Z (main)
+Task: Premium Sky Blue E-commerce Login Page Redesign & Social Authentication (Google & Facebook)
+
+Work Log:
+- Implemented full redesigned authentication experience following the Sky Blue brand color system:
+  - Primary Sky Blue: `#38BDF8`
+  - Primary Dark Blue: `#0284C7`
+  - Deep Navy: `#075985`
+  - Light Sky Blue: `#F0F9FF`
+  - Background: `#F8FAFC`
+  - Text: `#1E293B`, Secondary: `#64748B`, Border: `#E2E8F0`
+  - Zero orange branding used.
+- Created `src/components/views/login-view.tsx`:
+  - Desktop two-column layout:
+    - Left section: Rich Sky Blue gradient backdrop with e-commerce lifestyle/gadget floating cards, headline "Everything You Love, All in One Place", subtitle, and key trust highlights (Exclusive Deals, Secure Shopping, Fast Delivery).
+    - Right section: Clean modern white card featuring website logo, "Welcome Back", Email/Phone input, password input with show/hide toggle, Remember Me checkbox, Forgot Password link, Sky Blue Sign In button, Google and Facebook social login buttons, and Create Account switch.
+  - Multi-mode support: Seamless transitions between Login, Registration (with customer/seller role selection, optional email, OTP or direct creation), and Forgot Password (step-by-step OTP reset).
+  - 1-Click Demo Login bar for instant Customer, Seller, and Admin test evaluation.
+  - Mobile & tablet responsive single/balanced column layout.
+- Created standalone Next.js pages:
+  - `src/app/login/page.tsx`
+  - `src/app/register/page.tsx`
+- Integrated with SPA navigation:
+  - Added `{ name: 'login' }` and `{ name: 'register' }` to `View` union in `src/lib/store.ts`.
+  - Routed in `src/app/page.tsx`.
+  - Updated `src/components/ecommerce/auth-modal.tsx` to wrap `LoginView` seamlessly in modal dialogs.
+- Implemented Social Authentication (OAuth 2.0):
+  - Created `src/lib/oauth.ts` with user lookup/creation handling phone uniqueness, secure password generation, and session JWT creation.
+  - Created `/api/auth/google` and `/api/auth/google/callback` with real OAuth token exchange, state verification, and user profile sync.
+  - Created `/api/auth/facebook` and `/api/auth/facebook/callback` with Graph API integration.
+  - Created `/api/auth/oauth-dev-notice` developer setup guide & test sandbox flow.
+  - Added documented OAuth env variables in `.env`.
+- Verification:
+  - TypeScript compilation: 0 errors (`tsc --noEmit`).
+  - `/login`: HTTP 200 OK.
+  - `/register`: HTTP 200 OK.
+  - `/api/auth/google`: HTTP 307 Redirect with state cookie.
+  - `/api/auth/facebook`: HTTP 307 Redirect with state cookie.
+  - OAuth token exchange and session cookie creation verified via callback test.
+  - Dev server running on `http://localhost:3000`.
+
+---
+Task ID: 23
+Agent: Super Z (main)
+Task: Product Input Page as Dedicated Main Page with Information "i" Buttons & No Sub-Form Clutter
+
+Work Log:
+- Replaced cramped modal product creation dialog with a full-width, dedicated Main Page (`ProductFormView`).
+- Created `src/components/views/product-form-view.tsx`:
+  - Structured 2-column e-commerce merchant layout (Main product details on left, Pricing, Media gallery, and Promotions on right).
+  - Built reusable `FieldInfo` component (`ℹ️` icon with Radix tooltip) placed directly beside field labels to eliminate all static explanatory text underneath input fields.
+  - Organized sections into logical cards:
+    1. Basic Information: Title with char counter, Category selector with "+ New" quick category creator, Brand name, Model/Edition.
+    2. Media Gallery: Cover image indicator, multi-image thumbnail gallery, upload files, add by URL, demo photos, product video URL.
+    3. Pricing & Inventory: Sales Price (৳), Original/Compare Price with live discount calculation, Stock quantity, SKU with auto-generation, Publish status switch.
+    4. Product Description & Highlights: Bullet points adder/remover, detailed description with formatting toolbar and Live Preview tab, What's in the Box.
+    5. Shipping, Dimensions & Warranty: Weight (kg), Dimensions (L × W × H cm), Warranty Type, Warranty Period, Warranty Policy, Return Policy.
+    6. Merchandising Badges: Flash Sale toggle and Featured Collection toggle.
+  - Sticky top header with breadcrumb navigation ("Dashboard / Products / Add New Product" or "Edit Product"), Discard button, and primary "Publish Product" / "Save Changes" button.
+- Updated `src/components/views/dashboard-view.tsx`:
+  - Clicking "Add New Product" or "Edit Product" seamlessly switches into the dedicated full-screen Product Input Page.
+  - Clicking "Discard" or saving returns directly to the products list with instant data refresh.
+  - Removed old `<DarazProductForm>` modal dialog.
+- Integrated into SPA router:
+  - Added `{ name: 'product-form'; productId?: string }` to `View` union in `src/lib/store.ts`.
+  - Added route rendering in `src/app/page.tsx`.
+- Verified TypeScript compilation: 0 errors (`tsc --noEmit`).
+- Dev server running on `http://localhost:3000`.

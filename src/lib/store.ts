@@ -14,6 +14,9 @@ import {
 
 export type View =
   | { name: 'home' }
+  | { name: 'login' }
+  | { name: 'register' }
+  | { name: 'product-form'; productId?: string }
   | { name: 'product'; productId: string }
   | { name: 'category'; categoryId: string; categoryName?: string }
   | { name: 'brand'; brand: string }
